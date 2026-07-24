@@ -1,7 +1,7 @@
 ---
 import Layout from "@/layouts/Layout.astro"
 import NavHeader from "@/components/NavHeader.astro"
-import { models, isCommercialLicense, getLicenseTier } from "@/data/models"
+import { models, getActiveParamsBillions, isCommercialLicense, getLicenseTier } from "@/data/models"
 import { getLicenseSlug } from "@/data/licenses"
 import hfStats from "@/data/hf-stats.json"
 import ollamaReadmes from "@/data/ollama-readmes.json"
@@ -394,7 +394,12 @@ const USE_CASE_ICONS: Record<string, any> = {
             <IconCpu class="h-3.5 w-3.5" />
             Your Hardware
           </h3>
-          <div id="hw-compat" class="space-y-2 font-mono text-[13px]" data-params={model.paramsBillions}>
+          <div
+            id="hw-compat"
+            class="space-y-2 font-mono text-[13px]"
+            data-params={model.paramsBillions}
+            data-active-params={getActiveParamsBillions(model)}
+          >
             <p class="text-muted italic">Detecting...</p>
           </div>
         </div>
@@ -615,6 +620,8 @@ const USE_CASE_ICONS: Record<string, any> = {
     if (!container) return
 
     const paramsBillions = parseFloat(container.dataset.params || "0")
+    const activeParamsBillions = parseFloat(container.dataset.activeParams || "0")
+    const evaluationOptions = { activeParamsBillions }
     let detectedHW: HardwareInfo
     let currentHW: HardwareInfo
 
@@ -639,7 +646,7 @@ const USE_CASE_ICONS: Record<string, any> = {
       const rows = document.querySelectorAll<HTMLElement>("[data-quant-row]")
       rows.forEach((row) => {
         const vram = parseFloat(row.dataset.vram || "0")
-        const { toksPerSec, grade } = evaluateModelComplete(vram, hw, paramsBillions)
+        const { toksPerSec, grade } = evaluateModelComplete(vram, hw, paramsBillions, evaluationOptions)
         const info = GRADES[grade]
         const statusEl = row.querySelector("[data-quant-status]") as HTMLElement
         if (statusEl) {
@@ -679,7 +686,7 @@ const USE_CASE_ICONS: Record<string, any> = {
         defaultVram = parseFloat((rows[0] as HTMLElement).dataset.vram || "0")
       }
 
-      const { grade, toksPerSec: toks } = evaluateModelComplete(defaultVram, hw, paramsBillions)
+      const { grade, toksPerSec: toks } = evaluateModelComplete(defaultVram, hw, paramsBillions, evaluationOptions)
       const info = GRADES[grade]
 
       const deviceSelect = buildDeviceSelectHTML(getDisplayName(detectedHW), overrides.device)

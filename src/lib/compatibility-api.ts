@@ -1,4 +1,9 @@
-import { models, type AIModel, type Quantization } from "../data/models";
+import {
+  getActiveParamsBillions,
+  models,
+  type AIModel,
+  type Quantization,
+} from "../data/models";
 import {
   evaluateModelComplete,
   isAppleSiliconCheck,
@@ -212,6 +217,7 @@ function pickRecommendedQuant(model: AIModel, hw: HardwareInfo): Quantization {
       quant.vramGB,
       hw,
       model.paramsBillions,
+      { activeParamsBillions: getActiveParamsBillions(model) },
     );
     if (result.status === "can-run") return quant;
     if (
@@ -306,6 +312,7 @@ function buildCompatibilityResult(
     quant.vramGB,
     hw,
     model.paramsBillions,
+    { activeParamsBillions: getActiveParamsBillions(model) },
   );
   const memory = availableMemory(hw);
   const headroom = memory === null ? null : round1(memory - quant.vramGB);
@@ -360,6 +367,7 @@ export function recommendModels(
         quant.vramGB,
         hw,
         model.paramsBillions,
+        { activeParamsBillions: getActiveParamsBillions(model) },
       );
       if (result.status === "cannot-run" || result.status === "unknown") {
         return null;

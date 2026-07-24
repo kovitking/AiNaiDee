@@ -2,6 +2,7 @@
 import Footer from "@/components/Footer.astro"
 import {
   models,
+  getActiveParamsBillions,
   isCommercialLicense,
   getLicenseTier,
   LICENSE_LIST,
@@ -354,6 +355,7 @@ function timeAgo(dateStr: string | null): string {
             data-model-name={model.name}
             data-quants={JSON.stringify(model.quants)}
             data-params={model.paramsBillions}
+            data-active-params={getActiveParamsBillions(model)}
             data-arch={model.architecture}
             data-uses={model.useCase.join(",")}
             data-provider={model.provider}
@@ -598,6 +600,7 @@ function timeAgo(dateStr: string | null): string {
             data-model-name={model.name}
             data-quants={JSON.stringify(model.quants)}
             data-params={model.paramsBillions}
+            data-active-params={getActiveParamsBillions(model)}
             data-arch={model.architecture}
             data-uses={model.useCase.join(",")}
             data-provider={model.provider}
@@ -1214,13 +1217,16 @@ function timeAgo(dateStr: string | null): string {
 
     const vram = quant.vramGB
     const params = parseFloat(card.dataset.params || "0")
+    const activeParams = parseFloat(card.dataset.activeParams || "0")
     const {
       status,
       toksPerSec: toks,
       memPct,
       score,
       grade,
-    } = evaluateModelComplete(vram, hw, params)
+    } = evaluateModelComplete(vram, hw, params, {
+      activeParamsBillions: activeParams,
+    })
     const gradeInfo = GRADES[grade]
 
     const label = card.querySelector<HTMLElement>("[data-status-label]")

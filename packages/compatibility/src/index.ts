@@ -1208,7 +1208,19 @@ export function evaluateModel(vramNeeded: number, hw: HardwareInfo): ModelStatus
 
 const SYSTEM_RAM_BW_GBS = 50; // DDR5 dual-channel ~50 GB/s
 
-export function estimateTokensPerSecond(modelVRAM: number, hw: HardwareInfo): number | null {
+export interface TokenSpeedOptions {
+  /**
+   * Full model footprint. For MoE models, throughput uses the active working
+   * set while CPU offload still depends on where all expert weights reside.
+   */
+  residentModelGB?: number;
+}
+
+export function estimateTokensPerSecond(
+  modelWorkingSetGB: number,
+  hw: HardwareInfo,
+  options: TokenSpeedOptions = {},
+): number | null {
   if (!hw.memoryBandwidth) return null;
   let efficiency: number;
   if (hw.isMobile && !hw.isAppleSilicon) {
@@ -1219,17 +1231,22 @@ export function estimateTokensPerSecond(modelVRAM: number, hw: HardwareInfo): nu
     efficiency = 0.70;
   }
 
+  const residentModelGB = Math.max(
+    modelWorkingSetGB,
+    options.residentModelGB ?? modelWorkingSetGB,
+  );
+
   // If model needs offloading (exceeds VRAM but fits in VRAM+RAM)
-  if (hw.estimatedVRAM && modelVRAM > hw.estimatedVRAM && hw.systemRAM) {
-    const fractionVRAM = Math.min(1, hw.estimatedVRAM / modelVRAM);
+  if (hw.estimatedVRAM && residentModelGB > hw.estimatedVRAM && hw.systemRAM) {
+    const fractionVRAM = Math.min(1, hw.estimatedVRAM / residentModelGB);
     const fractionRAM = 1 - fractionVRAM;
     // Harmonic weighted mean — bottlenecked by the slower path
     const effectiveBW = 1 / (fractionVRAM / hw.memoryBandwidth + fractionRAM / SYSTEM_RAM_BW_GBS);
-    const toks = (effectiveBW / modelVRAM) * efficiency * 0.85; // extra penalty for PCIe transfer overhead
+    const toks = (effectiveBW / modelWorkingSetGB) * efficiency * 0.85; // extra penalty for PCIe transfer overhead
     return Math.max(1, Math.round(toks));
   }
 
-  const toks = (hw.memoryBandwidth / modelVRAM) * efficiency;
+  const toks = (hw.memoryBandwidth / modelWorkingSetGB) * efficiency;
   return Math.round(toks);
 }
 
@@ -1305,9 +1322,28 @@ export interface ModelEvaluation {
   grade: Grade;
 }
 
-export function evaluateModelComplete(vramGB: number, hw: HardwareInfo, paramsBillions: number): ModelEvaluation {
+export interface ModelEvaluationOptions {
+  /** Parameters active per token. Fit and memory usage still use total VRAM. */
+  activeParamsBillions?: number;
+}
+
+export function evaluateModelComplete(
+  vramGB: number,
+  hw: HardwareInfo,
+  paramsBillions: number,
+  options: ModelEvaluationOptions = {},
+): ModelEvaluation {
+  const requestedActiveParams = options.activeParamsBillions;
+  const activeParams = requestedActiveParams && requestedActiveParams > 0
+    ? Math.min(requestedActiveParams, paramsBillions)
+    : paramsBillions;
+  const speedWorkingSetGB = paramsBillions > 0 && activeParams < paramsBillions
+    ? Math.max(0.5, vramGB * (activeParams / paramsBillions))
+    : vramGB;
   const status = evaluateModel(vramGB, hw);
-  const toksPerSec = estimateTokensPerSecond(vramGB, hw);
+  const toksPerSec = estimateTokensPerSecond(speedWorkingSetGB, hw, {
+    residentModelGB: vramGB,
+  });
   const memPct = memoryPercentage(vramGB, hw);
   const score = computeScore(status, toksPerSec, paramsBillions, memPct);
   const grade = scoreToGrade(score, status);

@@ -1,5 +1,5 @@
 import { readdirSync, existsSync } from "node:fs";
-import { models } from "../../../src/data/models.ts";
+import { getActiveParamsBillions, models } from "../../../src/data/models.ts";
 import { evaluateModelComplete } from "../../../src/lib/hardware.ts";
 import type { RecommendedModel, CliHardwareInfo } from "./types";
 import { modelPathFromId } from "./model-store";
@@ -184,7 +184,12 @@ function pickBestQuant(
   let best: RecommendedModel | null = null;
 
   for (const quant of byQuality) {
-    const evalResult = evaluateModelComplete(quant.vramGB, hw, model.paramsBillions);
+    const evalResult = evaluateModelComplete(
+      quant.vramGB,
+      hw,
+      model.paramsBillions,
+      { activeParamsBillions: getActiveParamsBillions(model) },
+    );
     if (evalResult.status === "cannot-run" || evalResult.status === "unknown") continue;
     const downloaded = isModelInstalled(model.id);
     const diskNeededGB = quant.diskGB;

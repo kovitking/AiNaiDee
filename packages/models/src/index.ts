@@ -34,6 +34,19 @@ export interface AIModel {
   license?: string;
 }
 
+/** Parameters evaluated for each token. Dense models use all their weights. */
+export function getActiveParamsBillions(
+  model: Pick<AIModel, "paramsBillions" | "architecture" | "activeParams" | "moe">,
+): number {
+  if (model.architecture !== "moe") return model.paramsBillions;
+  if (model.moe?.activeParameters) {
+    return model.moe.activeParameters / 1_000_000_000;
+  }
+  const parsed = model.activeParams?.match(/([\d.]+)\s*B/i)?.[1];
+  const active = parsed ? Number.parseFloat(parsed) : Number.NaN;
+  return Number.isFinite(active) && active > 0 ? active : model.paramsBillions;
+}
+
 // ── Helper to compute quants from param count ─────────────
 
 // ~0.5 GB constant overhead for KV cache + inference runtime (llama.cpp, CUDA/Metal context)

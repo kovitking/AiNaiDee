@@ -647,6 +647,41 @@ describe("evaluateModelComplete", () => {
     expect(result.status).toBe("can-run");
     expect(["S", "A"]).toContain(result.grade);
   });
+
+  it("uses total memory for MoE fit and active parameters for throughput", () => {
+    const hw = makeHW({
+      estimatedVRAM: 24,
+      memoryBandwidth: 1008,
+      systemRAM: 64,
+    });
+    const denseEstimate = evaluateModelComplete(20, hw, 35);
+    const moeEstimate = evaluateModelComplete(20, hw, 35, {
+      activeParamsBillions: 3,
+    });
+
+    expect(moeEstimate.status).toBe(denseEstimate.status);
+    expect(moeEstimate.memPct).toBe(denseEstimate.memPct);
+    expect(moeEstimate.toksPerSec!).toBeGreaterThan(denseEstimate.toksPerSec!);
+  });
+
+  it("penalizes MoE throughput when expert weights are offloaded to CPU", () => {
+    const fullGpu = makeHW({
+      estimatedVRAM: 24,
+      memoryBandwidth: 1008,
+      systemRAM: 64,
+    });
+    const cpuOffload = makeHW({
+      estimatedVRAM: 12,
+      memoryBandwidth: 1008,
+      systemRAM: 64,
+    });
+    const options = { activeParamsBillions: 3 };
+    const gpuEstimate = evaluateModelComplete(20, fullGpu, 35, options);
+    const offloadEstimate = evaluateModelComplete(20, cpuOffload, 35, options);
+
+    expect(offloadEstimate.status).toBe("can-run-slow");
+    expect(offloadEstimate.toksPerSec!).toBeLessThan(gpuEstimate.toksPerSec!);
+  });
 });
 
 // ── applyOverrides ───────────────────────────────────────────

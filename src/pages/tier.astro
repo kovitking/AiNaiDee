@@ -2,7 +2,7 @@
 import Layout from "@/layouts/Layout.astro";
 import NavHeader from "@/components/NavHeader.astro";
 import Footer from "@/components/Footer.astro";
-import { models } from "@/data/models";
+import { getActiveParamsBillions, models } from "@/data/models";
 import IconDownload from "@/icons/download.svg";
 import IconCopy from "@/icons/copy.svg";
 ---
@@ -102,6 +102,7 @@ import IconCopy from "@/icons/copy.svg";
         provider: m.provider,
         params: m.params,
         paramsBillions: m.paramsBillions,
+        activeParamsBillions: getActiveParamsBillions(m),
         architecture: m.architecture,
         vramQ4: m.quants.find(q => q.name === "Q4_K_M")?.vramGB || m.quants[0].vramGB,
         featured: m.featured || false,
@@ -179,6 +180,7 @@ import IconCopy from "@/icons/copy.svg";
     provider: string;
     params: string;
     paramsBillions: number;
+    activeParamsBillions: number;
     architecture: string;
     vramQ4: number;
     featured: boolean;
@@ -465,7 +467,12 @@ import IconCopy from "@/icons/copy.svg";
 
   function evaluateAndRender() {
     evaluatedModels = modelsData.map(m => {
-      const { grade, score, toksPerSec: toks } = evaluateModelComplete(m.vramQ4, currentHW, m.paramsBillions);
+      const { grade, score, toksPerSec: toks } = evaluateModelComplete(
+        m.vramQ4,
+        currentHW,
+        m.paramsBillions,
+        { activeParamsBillions: m.activeParamsBillions },
+      );
       return { model: m, grade, score, toks };
     });
     renderTierList();
