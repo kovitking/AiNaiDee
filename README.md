@@ -72,6 +72,37 @@ Models from **Meta, Google, Alibaba, DeepSeek, Mistral AI, Microsoft, NVIDIA, Li
 | Phi | 3.5 Mini, 4 14B, 4 Mini Reasoning |
 | Others | Nemotron, GLM-4, OLMo 2, SmolLM3, LFM2, EXAONE, Kimi K2, GPT-OSS |
 
+## API
+
+CanIRun.ai exposes the compatibility engine as a CORS-enabled JSON API:
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/models` | List models; accepts `provider` and `useCase` filters |
+| `GET` | `/api/models/:id` | Get complete metadata for one model |
+| `POST` | `/api/compatibility` | Evaluate one model against a hardware profile |
+| `POST` | `/api/recommend` | Recommend compatible models for a hardware profile |
+
+Example:
+
+```bash
+curl -X POST https://canirun.ai/api/compatibility \
+  -H 'content-type: application/json' \
+  -d '{
+    "hardware": {
+      "ramGb": 32,
+      "gpu": { "name": "NVIDIA RTX 3060" }
+    },
+    "modelId": "llama3.1-8b",
+    "quantization": "Q4_K_M"
+  }'
+```
+
+GPU names are enriched from the internal hardware database. You can also pass
+`vramGb` and `memoryBandwidthGbps` explicitly. For Apple Silicon, provide the
+chip name and total unified memory through `ramGb`. Omitting `quantization`
+selects the highest-quality option that fits the supplied hardware.
+
 ## Tech Stack
 
 | | Technology | Purpose |
