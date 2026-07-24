@@ -75,6 +75,9 @@ const TARGET_MODELS = [
   "Qwen/Qwen3.5-2B",
   "Qwen/Qwen3.5-4B",
   "Qwen/Qwen3.5-9B",
+  // DeepReinforce Ornith
+  "deepreinforce-ai/Ornith-1.0-9B",
+  "deepreinforce-ai/Ornith-1.0-35B",
   // Microsoft Phi
   "microsoft/Phi-3.5-mini-instruct",
   "microsoft/phi-4",
@@ -187,6 +190,7 @@ const MOE_ACTIVE_PARAMS: Record<string, number> = {
   "Qwen/Qwen3.5-35B-A3B": 3_000_000_000,
   "Qwen/Qwen3.5-122B-A10B-FP8": 10_000_000_000,
   "Qwen/Qwen3.5-397B-A17B": 17_000_000_000,
+  "deepreinforce-ai/Ornith-1.0-35B": 3_000_000_000,
   "meta-llama/Llama-4-Scout-17B-16E-Instruct": 17_000_000_000,
   "meta-llama/Llama-4-Maverick-17B-128E-Instruct": 17_000_000_000,
   "moonshotai/Kimi-K2-Instruct": 32_000_000_000,
