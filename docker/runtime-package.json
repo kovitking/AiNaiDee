@@ -1,0 +1,9 @@
+{
+  "name": "ainaidee-runtime",
+  "private": true,
+  "type": "module",
+  "description": "Runtime-only manifest for the Docker image. Must stay in sync with the bare imports of dist/server/entry.mjs.",
+  "dependencies": {
+    "@libsql/client": "0.17.3"
+  }
+}

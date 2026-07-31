@@ -1,0 +1,52 @@
+services:
+  app:
+    build:
+      context: .
+      args:
+        # Baked into the build (sitemap + absolute OG image URLs), not read at
+        # runtime. Phase 1 serves plain HTTP on the LAN, so it defaults to the
+        # host:port below. When DNS and the reverse proxy land, set SITE_URL to
+        # the real origin in .env and REBUILD — restarting is not enough.
+        SITE_URL: ${SITE_URL:-http://203.0.113.10:8587}
+    image: ainaidee:latest
+    restart: unless-stopped
+    environment:
+      # Only needed for the /api/runai/metrics endpoint. Everything else on the
+      # site works without them; the endpoint throws if they are unset.
+      TURSO_DATABASE_URL: ${TURSO_DATABASE_URL:-}
+      TURSO_AUTH_TOKEN: ${TURSO_AUTH_TOKEN:-}
+    # Phase 1: published on all interfaces so the LAN can reach it directly at
+    # :8587 with no TLS. The container still listens on 4321 internally.
+    ports:
+      - "${HTTP_PORT:-8587}:4321"
+    networks:
+      - web
+
+  # Phase 2, inert for now: `docker compose --profile tls up -d` once DNS points
+  # at this host. Caddy reaches the app as `app:4321` over the compose network,
+  # so it does not conflict with the 8587 publish above. Before enabling it,
+  # confirm nothing else on the host holds 80/443, and put a real address in the
+  # Caddyfile's `email` line for Let's Encrypt.
+  caddy:
+    image: caddy:2-alpine
+    profiles: ["tls"]
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - web
+
+networks:
+  web:
+
+volumes:
+  caddy_data:
+  caddy_config:

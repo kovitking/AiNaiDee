@@ -1,0 +1,32 @@
+{
+	# Replace with your address. Caddy uses it for Let's Encrypt notices.
+	email admin@ainaidee.com
+}
+
+ainaidee.com, www.ainaidee.com {
+	encode zstd gzip
+
+	# Ported from the old vercel.json: OG images are served as .jpg, so keep the
+	# .png URLs alive for anything that already linked them.
+	@og_png path_regexp og_png ^/og/(.+)\.png$
+	redir @og_png /og/{re.og_png.1}.jpg permanent
+
+	# Hashed build assets are immutable; everything else is decided by the app.
+	@immutable path /_astro/*
+	header @immutable Cache-Control "public, max-age=31536000, immutable"
+
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+
+	reverse_proxy app:4321
+
+	log {
+		output file /data/access.log {
+			roll_size 10MiB
+			roll_keep 5
+		}
+	}
+}
