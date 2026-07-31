@@ -1,19 +1,13 @@
 {
-	# Replace with your address. Caddy uses it for Let's Encrypt notices.
-	email admin@ainaidee.com
+	# Imperva Incapsula (CWAF) terminates TLS for ainaidee.com and forwards to
+	# this origin over plain HTTP at :8587 for every hostname (ainaidee.com,
+	# www, blog) — confirmed 2026-08-01. Caddy's job here is Host-based routing
+	# only, not certificates: auto_https off, no `email` directive, no ACME.
+	auto_https off
 }
 
-ainaidee.com, www.ainaidee.com {
+:8587 {
 	encode zstd gzip
-
-	# Ported from the old vercel.json: OG images are served as .jpg, so keep the
-	# .png URLs alive for anything that already linked them.
-	@og_png path_regexp og_png ^/og/(.+)\.png$
-	redir @og_png /og/{re.og_png.1}.jpg permanent
-
-	# Hashed build assets are immutable; everything else is decided by the app.
-	@immutable path /_astro/*
-	header @immutable Cache-Control "public, max-age=31536000, immutable"
 
 	header {
 		X-Content-Type-Options nosniff
@@ -21,7 +15,44 @@ ainaidee.com, www.ainaidee.com {
 		-Server
 	}
 
-	reverse_proxy app:4321
+	@immutable path /_astro/*
+	header @immutable Cache-Control "public, max-age=31536000, immutable"
+
+	@blog_host host blog.ainaidee.com
+	handle @blog_host {
+		# Ghost admin (/ghost*) is intentionally NOT routed here — see the
+		# `ghost` service in docker-compose.yml. First-time setup and ongoing
+		# admin use go through an SSH tunnel to 127.0.0.1:2368, never through
+		# this subdomain.
+
+		# src/pages/blog/* renders under /blog on the app, but the rendered
+		# pages themselves link and load assets with root-relative paths that
+		# assume the main domain (NavHeader's /blog link, /_astro/* bundles,
+		# /og/blog/*.jpg OG images, /favicon.svg) — pass those straight
+		# through unprefixed so they don't get double-prefixed by the rewrite
+		# below.
+		@passthrough path /_astro/* /og/* /blog /blog/* /favicon.svg /favicon.ico
+		handle @passthrough {
+			reverse_proxy app:4321
+		}
+
+		# Everything else (subdomain root, post slugs) maps into /blog/*
+		# internally.
+		handle {
+			rewrite * /blog{uri}
+			reverse_proxy app:4321
+		}
+	}
+
+	# ainaidee.com, www.ainaidee.com — unchanged behavior from phase 1.
+	handle {
+		# Ported from the old vercel.json: OG images are served as .jpg, so
+		# keep the .png URLs alive for anything that already linked them.
+		@og_png path_regexp og_png ^/og/(.+)\.png$
+		redir @og_png /og/{re.og_png.1}.jpg permanent
+
+		reverse_proxy app:4321
+	}
 
 	log {
 		output file /data/access.log {
