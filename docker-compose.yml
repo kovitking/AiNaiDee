@@ -15,20 +15,21 @@ services:
       # site works without them; the endpoint throws if they are unset.
       TURSO_DATABASE_URL: ${TURSO_DATABASE_URL:-}
       TURSO_AUTH_TOKEN: ${TURSO_AUTH_TOKEN:-}
-    # Phase 1: published on all interfaces so the LAN can reach it directly at
-    # :8587 with no TLS. The container still listens on 4321 internally.
-    ports:
-      - "${HTTP_PORT:-8587}:4321"
+    # Not published to the host: Caddy below now owns :8587 and is Imperva's
+    # configured origin for ainaidee.com/www/blog. app is reached only as
+    # app:4321 over the compose network.
     networks:
       - web
 
-  # Blog (Ghost), PLANNED — inert. `docker compose --profile blog up -d` starts
-  # it, but do not run that yet: DNS for blog.ainaidee.com isn't pointed, the
-  # Ghost admin account hasn't been created (must be done by hand in a browser
-  # at first boot — an AI assistant should never create that account or its
-  # password), and there's no Caddy route to it since blog.ainaidee.com needs
-  # a subdomain vhost that isn't written yet (blog-architecture.md). See
-  # docs/blog-plan.md for the full plan and open decisions.
+  # Blog (Ghost) — running behind `docker compose --profile blog up -d`.
+  # Admin (/ghost*) is deliberately NOT proxied by Caddy and NOT published on
+  # the public interface: the port binding below is 127.0.0.1-only, reached by
+  # SSH tunnel (`ssh -L 2368:localhost:2368 imperva@172.16.57.192`, then open
+  # http://localhost:2368/ghost locally) to create the owner account and any
+  # Content API key. This avoids the race where a public, unprotected /ghost
+  # lets someone else claim the owner account before you do. See
+  # docs/blog-plan.md for the full plan and docs/blog-architecture.md for the
+  # Caddy routing this pairs with (blog.ainaidee.com -> app:4321, /blog{uri}).
   #
   # MySQL, not SQLite (decided 2026-07-31, revised same day): SQLite is
   # development-only in Ghost's official Docker image, and this server already
@@ -53,6 +54,8 @@ services:
       # paste real values into chat.
       database__connection__password: ${GHOST_DB_PASSWORD:?set GHOST_DB_PASSWORD in .env before using the blog profile}
       database__connection__database: ghost
+    ports:
+      - "127.0.0.1:2368:2368"
     volumes:
       - ghost_content:/var/lib/ghost/content
     networks:
@@ -72,21 +75,24 @@ services:
     networks:
       - web
 
-  # Phase 2, inert for now: `docker compose --profile tls up -d` once DNS points
-  # at this host. Caddy reaches the app as `app:4321` over the compose network,
-  # so it does not conflict with the 8587 publish above. Before enabling it,
-  # confirm nothing else on the host holds 80/443, and put a real address in the
-  # Caddyfile's `email` line for Let's Encrypt.
+  # ainaidee.com sits behind Imperva Incapsula (CWAF) — confirmed 2026-08-01.
+  # Imperva terminates TLS and reverse-proxies to this origin over plain HTTP
+  # at :8587 for every hostname (ainaidee.com, www.ainaidee.com,
+  # blog.ainaidee.com all point at the same origin:port in Imperva's
+  # dashboard). Caddy's only job is Host-based routing on that one port —
+  # NOT certificates (`auto_https off` in the Caddyfile; a same-box Let's
+  # Encrypt/ZeroSSL ACME challenge can never reach this container, since
+  # Imperva's edge answers every request to these hostnames first) — mainly
+  # so blog.ainaidee.com's traffic gets the /blog{uri} rewrite that
+  # src/pages/blog/* needs while ainaidee.com/www pass straight through
+  # unchanged. See Caddyfile and docs/blog-architecture.md.
   caddy:
     image: caddy:2-alpine
-    profiles: ["tls"]
     restart: unless-stopped
     depends_on:
       - app
     ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
+      - "${HTTP_PORT:-8587}:8587"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
