@@ -22,6 +22,56 @@ services:
     networks:
       - web
 
+  # Blog (Ghost), PLANNED — inert. `docker compose --profile blog up -d` starts
+  # it, but do not run that yet: DNS for blog.ainaidee.com isn't pointed, the
+  # Ghost admin account hasn't been created (must be done by hand in a browser
+  # at first boot — an AI assistant should never create that account or its
+  # password), and there's no Caddy route to it since blog.ainaidee.com needs
+  # a subdomain vhost that isn't written yet (blog-architecture.md). See
+  # docs/blog-plan.md for the full plan and open decisions.
+  #
+  # MySQL, not SQLite (decided 2026-07-31, revised same day): SQLite is
+  # development-only in Ghost's official Docker image, and this server already
+  # runs one other project's Postgres container on 5432 — Ghost can't use it
+  # anyway (no Postgres adapter) and sharing another project's database would
+  # be its own bad idea even if it could. A dedicated ghost-db below is the
+  # official, fully-supported path and stays isolated from every other
+  # container on this shared box.
+  ghost:
+    image: ghost:6-alpine
+    profiles: ["blog"]
+    restart: unless-stopped
+    depends_on:
+      - ghost-db
+    environment:
+      url: ${GHOST_URL:-https://blog.ainaidee.com}
+      database__client: mysql
+      database__connection__host: ghost-db
+      database__connection__user: ghost
+      # No default on purpose — MySQL_PASSWORD below must match. Both must be
+      # set in .env on the server before this profile is ever started; do not
+      # paste real values into chat.
+      database__connection__password: ${GHOST_DB_PASSWORD:?set GHOST_DB_PASSWORD in .env before using the blog profile}
+      database__connection__database: ghost
+    volumes:
+      - ghost_content:/var/lib/ghost/content
+    networks:
+      - web
+
+  ghost-db:
+    image: mysql:8.0
+    profiles: ["blog"]
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ghost
+      MYSQL_USER: ghost
+      MYSQL_PASSWORD: ${GHOST_DB_PASSWORD:?set GHOST_DB_PASSWORD in .env before using the blog profile}
+      MYSQL_RANDOM_ROOT_PASSWORD: "true"
+    volumes:
+      - ghost_db_data:/var/lib/mysql
+    networks:
+      - web
+
   # Phase 2, inert for now: `docker compose --profile tls up -d` once DNS points
   # at this host. Caddy reaches the app as `app:4321` over the compose network,
   # so it does not conflict with the 8587 publish above. Before enabling it,
@@ -50,3 +100,5 @@ networks:
 volumes:
   caddy_data:
   caddy_config:
+  ghost_content:
+  ghost_db_data:
