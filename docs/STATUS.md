@@ -210,7 +210,13 @@ both GET and POST API routes all respond. Also verified against a *minimal* tree
 4. Localise the site copy to Thai.
 5. The fine-tuning / LoRA feasibility mode from `idea.md` — "can my machine *train* this?", which
    is the differentiator upstream does not have.
-6. Blog + the SEO work.
+6. Blog — decided (SQLite, no membership yet, `blog.ainaidee.com`, multi-writer) and the Astro
+   side is built and building clean: routes, OG image, Schema.org, `ghost` service in
+   `docker-compose.yml` behind `profiles: ["blog"]`. Blocked on you: DNS for `blog.ainaidee.com`,
+   how to expose Ghost's first-run setup before Caddy exists, and creating the Ghost owner
+   account yourself (an AI assistant can't create accounts/passwords). Details:
+   [`docs/blog-plan.md`](./blog-plan.md) + [`docs/blog-architecture.md`](./blog-architecture.md).
+   SEO work for the rest of the site is separate and still unstarted.
 7. Rename `canirun-ai` / `@canirun/*` to AiNaiDee.
 
 ---

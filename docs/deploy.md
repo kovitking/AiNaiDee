@@ -1,5 +1,33 @@
 # Deploying AiNaiDee to your own Ubuntu server
 
+## Current state (2026-07-31)
+
+**Phase 1 is live:** http://203.0.113.10:8587, plain HTTP, no domain yet. Container
+`ainaidee-app-1` on `deploy@203.0.113.10` (Ubuntu 24.04.2, x86_64, Docker 29.3.0, 12 GB RAM — a
+shared box already running about a dozen other demo containers). `restart: unless-stopped`.
+
+What's *not* true yet, that the rest of this document originally assumed as day-one steps:
+
+- **No TLS, no domain.** The `caddy` service exists in `docker-compose.yml` but is gated behind
+  `profiles: ["tls"]`, so `docker compose up -d` does not start it. Turning it on is the whole
+  of "Phase 2" below.
+- **The app is published on `0.0.0.0:8587`, not `127.0.0.1:4321`.** Phase 1 was asked for as
+  direct-HTTP-on-the-LAN with no reverse proxy in front, so the loopback-only publish this
+  document describes further down does not reflect what's running. That changes when Caddy
+  comes online — see "Enabling phase 2" below.
+- **Deploy is manual scp, not `git clone`/`git pull` on the server.** The source didn't exist on
+  GitHub until this repo's first push (2026-07-31), so the initial deploy copied a tarball over
+  SSH instead. The repo is now pushed to `main` on `github.com/kovitking/AiNaiDee`, so a
+  git-based flow is possible going forward — it just hasn't been switched over.
+- **The first real build hit two bugs**, both now fixed and on `main`: `.dockerignore` excluded
+  `packages/runai/package.json`, which the Dockerfile needs even though it excludes the rest of
+  that package; and `src/pages/design.astro` imported three `@fontsource` packages that were
+  never declared in `package.json`. Details in `CLAUDE.md` under "Container build traps".
+
+Everything below that isn't about TLS/domain describes the app and build correctly — the two-stage
+build, the runtime image contents, `SITE_URL` baking, and the "no server needed" section are all
+unchanged from what was verified in phase 1.
+
 ## What changed and why
 
 The project shipped configured for Vercel. It now targets a plain Node server so it can run
@@ -25,86 +53,90 @@ image is `dist/` plus **one** dependency — `@libsql/client`, about 12 MB, used
 only. Your host needs Docker and nothing else, and the runtime image contains no compiler and
 no native modules to patch.
 
-Verified locally without Docker by running the built server against a minimal tree containing
-only `dist/` and `@libsql/client`: pages, model pages, OG images, sitemap, and both the GET and
-POST API routes all responded correctly.
+First verified locally without Docker, by running the built server against a minimal tree
+containing only `dist/` and `@libsql/client`. Since then, the actual container has been built and
+deployed (phase 1, above) and the same routes — pages, model pages, OG images, sitemap, both GET
+and POST API routes — were smoke-tested against the real running container.
 
-## What I still need from you
+## What's left — enabling phase 2 (TLS + real domain)
 
-**Blocking — I cannot finish without these:**
+Server details, architecture, and the first build are done — see "Current state" above. What's
+still open:
 
-1. **The server's public IP or hostname**, its Ubuntu version, and its architecture
-   (`amd64` or `arm64` — it changes the base image behaviour).
-2. **Whether anything already listens on ports 80 and 443.** If you run another nginx, Traefik,
-   or Caddy on that box, do **not** use the `caddy` service in `docker-compose.yml` — it will
-   fail to bind. Delete that service and point your existing proxy at `127.0.0.1:4321`, which
-   the `app` service already publishes. Tell me which situation you are in and I will adjust
-   the compose file.
-3. **DNS control for ainaidee.com.** Before the first `docker compose up`, point an `A` record
-   (and `AAAA` if the box has IPv6) at the server. Caddy requests the certificate on startup
-   and will fail loudly if DNS has not propagated. Confirm whether you want `www` as well —
-   the Caddyfile currently claims both.
-4. **An email address for Let's Encrypt**, to replace `admin@ainaidee.com` in the Caddyfile.
-
-**Decisions I need from you:**
-
-5. **Turso telemetry — on or off?** Off by default and the site is fully functional without it;
+1. **DNS control for ainaidee.com.** Point an `A` record (and `AAAA` if the box has IPv6) at
+   `203.0.113.10` before flipping Caddy on. It requests the certificate on startup and fails
+   loudly if DNS hasn't propagated. Confirm whether you want `www` too — the Caddyfile currently
+   claims both.
+2. **An email address for Let's Encrypt**, to replace `admin@ainaidee.com` in the Caddyfile.
+3. **Whether anything else on that box already listens on ports 80 and 443.** It's a shared
+   server running about a dozen other containers. If something already holds those ports, don't
+   enable the `caddy` service — keep pointing traffic at `203.0.113.10:8587` directly, or put
+   your existing proxy in front of it instead.
+4. **Turso telemetry — on or off?** Off by default and the site is fully functional without it;
    only `/api/runai/metrics` fails. If you want it on, put `TURSO_DATABASE_URL` and
    `TURSO_AUTH_TOKEN` in a `.env` file next to `docker-compose.yml` **on the server**. Do not
-   paste those tokens into chat — I do not need to see them, and I should not.
-6. **Deploy style:** manual (`git pull && docker compose up -d --build`) or automatic on push
-   via a GitHub Actions runner or a webhook. Manual is fine to start.
+   paste those tokens into chat.
+5. **Deploy style going forward:** the repo is now on GitHub (`main`, pushed 2026-07-31), so
+   `git clone`/`git pull` on the server is possible. Phase 1 used `scp` because the repo wasn't
+   pushed yet at the time. Decide whether the server should pull from GitHub directly, or stay
+   on the current scp-then-build loop.
 
-**How I run it, if you want me to:**
-
-7. I have no access to your server from here and no Docker on this machine, so **the image has
-   never actually been built.** Either paste me the output of the first build and I will fix
-   whatever breaks, or give me SSH access and I will run it myself. Your call — the commands
-   below are complete either way.
-
-**Worth knowing:**
-
-8. The build is the memory-hungry part; it renders an OG image per model. Give the build at
-   least **2 GB of free RAM**. If the box is small, build the image elsewhere and push it to a
-   registry instead of building in place.
-
-## Deploying
+## Deploying (what actually ran for phase 1)
 
 ```bash
-git clone https://github.com/kovitking/AiNaiDee.git
-cd AiNaiDee
-
-# only if you want telemetry
-printf 'TURSO_DATABASE_URL=…\nTURSO_AUTH_TOKEN=…\n' > .env
-
-docker compose up -d --build
-docker compose logs -f app
+# from a machine with the repo, not on the server — the server didn't have git access to this
+# repo yet when phase 1 deployed. This can become `git clone` now that main is pushed.
+scp -r . deploy@203.0.113.10:~/apps/ainaidee/
+ssh deploy@203.0.113.10 "cd ~/apps/ainaidee && docker compose build"
+ssh deploy@203.0.113.10 "cd ~/apps/ainaidee && docker compose up -d"
+ssh deploy@203.0.113.10 "docker compose logs -f app"
 ```
 
-Then check it:
+Then check it (no domain yet, so the bare IP:port):
 
 ```bash
-curl -sI https://ainaidee.com | head -1
-curl -s https://ainaidee.com/api/models | head -c 200
-curl -s -X POST https://ainaidee.com/api/compatibility \
+curl -sI http://203.0.113.10:8587 | head -1
+curl -s http://203.0.113.10:8587/api/models | head -c 200
+curl -s -X POST http://203.0.113.10:8587/api/compatibility \
   -H 'content-type: application/json' \
   -d '{"hardware":{"ramGb":32,"gpu":{"name":"NVIDIA RTX 3060"}},"modelId":"llama3.1-8b"}'
 ```
 
-Updating later:
+Once phase 2 is enabled (Caddy + real domain), these become `https://ainaidee.com/...` and Caddy
+takes over TLS termination in front of the same `app` container.
+
+Updating later, with the current scp-based flow:
 
 ```bash
-git pull && docker compose up -d --build && docker image prune -f
+scp -r . deploy@203.0.113.10:~/apps/ainaidee/
+ssh deploy@203.0.113.10 "cd ~/apps/ainaidee && docker compose up -d --build && docker image prune -f"
+```
+
+Or, once switched to git on the server:
+
+```bash
+ssh deploy@203.0.113.10 "cd ~/apps/ainaidee && git pull && docker compose up -d --build && docker image prune -f"
 ```
 
 ## Gotchas
 
 - **`SITE_URL` is baked in at build time**, not read at runtime — it goes into the sitemap and
   into absolute OG image URLs. Changing the domain means rebuilding the image, not restarting
-  the container.
+  the container. Right now it's baked as `http://203.0.113.10:8587` (the `docker-compose.yml`
+  default); switching to the real domain for phase 2 means setting `SITE_URL` in `.env` on the
+  server **and rebuilding**.
+- **`.dockerignore` must exclude `packages/runai`'s contents but keep its `package.json`.** A
+  plain `packages/runai` entry breaks the build at `COPY packages/runai/package.json`, because
+  `--frozen-lockfile` needs that manifest to match the lockfile even though the rest of the
+  package is deliberately excluded. Hit this on the first real build; see `CLAUDE.md`.
+- **Anything a page imports must be a real dependency in `package.json`.** `src/pages/design.astro`
+  imported three `@fontsource` packages that weren't declared, and Rollup failed to resolve them.
+  Also hit on the first real build.
 - **If you ever add a server-side dependency**, `docker/runtime-package.json` must be updated
   or the container will crash on that code path. Re-derive the list with:
-  `grep -rhoE "from *[\"'][@a-z][^\"'./][^\"']*[\"']" dist/server/*.mjs | sort -u`
+  `grep -rhoE "from *[\"'][@a-z][^\"'./][^\"']*[\"']" dist/server/ | sort -u`
+  (recurse over the whole `dist/server/` directory, not just `*.mjs` — the imports live in
+  `dist/server/chunks/`).
 - **Do not move the builder stage to Alpine.** `sharp` and `@resvg/resvg-js` need glibc; musl
   builds of these are a recurring source of breakage. The runtime stage could be Alpine since
   it has no native deps, but the saving is small next to the 215 MB of static assets.

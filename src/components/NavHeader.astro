@@ -10,6 +10,10 @@ const links = [
   { href: "/tier", label: "tier list" },
   { href: "/docs", label: "docs" },
   { href: "/why", label: "why" },
+  // Points at the in-repo /blog route for now. Once Caddy maps
+  // blog.ainaidee.com -> app:4321/blog/* (see docs/blog-architecture.md),
+  // this should become an absolute link to the subdomain instead.
+  { href: "/blog", label: "blog" },
 ];
 ---
 
