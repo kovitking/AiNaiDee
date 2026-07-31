@@ -1,0 +1,1097 @@
+---
+import "@fontsource/chakra-petch/500.css";
+import "@fontsource/chakra-petch/700.css";
+import "@fontsource/ibm-plex-sans-thai/400.css";
+import "@fontsource/ibm-plex-sans-thai/600.css";
+import "@fontsource/ibm-plex-mono/400.css";
+import "@fontsource/ibm-plex-mono/500.css";
+
+import { models, getActiveParamsBillions } from "@canirun/models";
+
+const RULER_MAX = 48; // GB — consumer reality: 8/12/16/24/32/48. Beyond this we clip.
+
+const USE_CASE_TH: Record<string, string> = {
+  chat: "คุยทั่วไป",
+  code: "เขียนโค้ด",
+  reasoning: "คิดวิเคราะห์",
+  vision: "ดูรูป",
+  multilingual: "หลายภาษา",
+  edge: "เครื่องเล็ก",
+  rag: "ค้นเอกสาร",
+};
+
+function ctxLabel(n: number): string {
+  if (n >= 1_000_000) return Math.round(n / 1_000_000) + "M";
+  if (n >= 1000) return Math.round(n / 1024) + "K";
+  return String(n);
+}
+
+function ageLabel(date: string | null): string {
+  if (!date) return "";
+  const [y, m] = date.split("-").map(Number);
+  const then = new Date(y, (m || 1) - 1, 1);
+  const months =
+    (2026 - then.getFullYear()) * 12 + (6 - then.getMonth()); // vs 2026-07
+  if (months < 1) return "ใหม่";
+  if (months < 12) return months + " เดือน";
+  const years = Math.floor(months / 12);
+  return years + " ปี";
+}
+
+const rows = models
+  .map((m) => {
+    const q4 = m.quants.find((q) => q.name === "Q4_K_M");
+    if (!q4) return null;
+    return {
+      id: m.id,
+      name: m.name,
+      provider: m.provider,
+      params: m.params,
+      paramsBillions: m.paramsBillions,
+      activeParams: getActiveParamsBillions(m),
+      moe: m.architecture === "moe",
+      ctx: ctxLabel(m.contextLength),
+      license: m.license ?? "—",
+      age: ageLabel(m.releaseDate),
+      useCase: m.useCase,
+      useCaseTh: m.useCase.map((u) => USE_CASE_TH[u] ?? u).join(" · "),
+      tools: Boolean(m.tools),
+      thinking: Boolean(m.thinking),
+      vision: m.useCase.includes("vision"),
+      vram: q4.vramGB,
+      disk: q4.diskGB,
+      ollamaId: m.ollamaId ?? null,
+    };
+  })
+  .filter((x): x is NonNullable<typeof x> => x !== null)
+  .sort((a, b) => a.vram - b.vram);
+
+const providers = [...new Set(rows.map((r) => r.provider))].sort();
+const licenses = [...new Set(rows.map((r) => r.license))].sort();
+const useCases = [...new Set(rows.flatMap((r) => r.useCase))];
+---
+
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>เอไอ ไหน ดี? — เครื่องคุณรันโมเดลไหนไหว</title>
+    <meta
+      name="description"
+      content="วัดว่าเครื่องของคุณรันโมเดล AI ตัวไหนได้บ้าง โมเดลทั้งหมดวัดบนไม้บรรทัดเดียวกัน"
+    />
+  </head>
+  <body>
+    <div class="nd-page">
+      <header class="nd-head">
+        <div class="nd-mark">
+          <span class="nd-mark-th">เอไอ ไหน ดี?</span>
+          <span class="nd-mark-en">AiNaiDee</span>
+        </div>
+        <p class="nd-head-note">ตัวอย่างแนวทางดีไซน์ · ใช้เอนจินคำนวณจริงของโปรเจกต์</p>
+      </header>
+
+      <main>
+        <section class="nd-hero">
+          <p class="nd-eyebrow">เลือกเครื่องที่ใกล้เคียงกับของคุณ</p>
+
+          <div class="nd-machines" role="radiogroup" aria-label="เลือกเครื่อง">
+            <button class="nd-chip is-on" type="button" role="radio" aria-checked="true"
+              data-vram="16" data-ram="32" data-bw="288" data-label="RTX 4060 Ti 16GB">RTX 4060 Ti</button>
+            <button class="nd-chip" type="button" role="radio" aria-checked="false"
+              data-vram="12" data-ram="32" data-bw="360" data-label="RTX 3060 12GB">RTX 3060</button>
+            <button class="nd-chip" type="button" role="radio" aria-checked="false"
+              data-vram="24" data-ram="64" data-bw="1008" data-label="RTX 4090 24GB">RTX 4090</button>
+            <button class="nd-chip" type="button" role="radio" aria-checked="false"
+              data-ram="16" data-bw="100" data-apple="1" data-label="MacBook Air M2 16GB">MacBook Air M2</button>
+            <button class="nd-chip" type="button" role="radio" aria-checked="false"
+              data-ram="48" data-bw="273" data-apple="1" data-label="MacBook Pro M4 Pro 48GB">MacBook Pro M4 Pro</button>
+            <button class="nd-chip" type="button" role="radio" aria-checked="false"
+              data-ram="16" data-bw="50" data-label="โน้ตบุ๊กการ์ดจอออนบอร์ด 16GB">ไม่มีการ์ดจอแยก</button>
+            <button class="nd-chip nd-chip-detect" type="button" id="nd-detect">ตรวจเครื่องของฉัน</button>
+          </div>
+
+          <h1 class="nd-verdict">
+            <span class="nd-verdict-machine" id="nd-machine">RTX 4060 Ti 16GB</span>
+            <span class="nd-verdict-line">
+              รันได้ลื่น <span class="nd-verdict-num" id="nd-count">—</span> จาก
+              <span id="nd-total">{rows.length}</span> โมเดล
+            </span>
+            <span class="nd-verdict-sub" id="nd-count-slow"></span>
+          </h1>
+
+          <p class="nd-detect-msg" id="nd-detect-msg" role="status" aria-live="polite"></p>
+        </section>
+
+        <section class="nd-controls" aria-label="กรองและเรียงโมเดล">
+          <div class="nd-search">
+            <input
+              type="search"
+              id="nd-q"
+              placeholder="ค้นหาชื่อโมเดล…"
+              aria-label="ค้นหาชื่อโมเดล"
+            />
+          </div>
+
+          <select id="nd-f-fit" aria-label="กรองตามผลลัพธ์">
+            <option value="">ทุกผลลัพธ์</option>
+            <option value="runs">เฉพาะที่รันได้ลื่น</option>
+            <option value="any">รันได้ (รวมที่ช้า)</option>
+            <option value="no">ที่รันไม่ไหว</option>
+          </select>
+
+          <select id="nd-f-task" aria-label="กรองตามงาน">
+            <option value="">ทุกงาน</option>
+            {useCases.map((u) => <option value={u}>{USE_CASE_TH[u] ?? u}</option>)}
+          </select>
+
+          <select id="nd-f-provider" aria-label="กรองตามผู้พัฒนา">
+            <option value="">ทุกผู้พัฒนา</option>
+            {providers.map((p) => <option value={p}>{p}</option>)}
+          </select>
+
+          <select id="nd-f-license" aria-label="กรองตามสัญญาอนุญาต">
+            <option value="">ทุกสัญญาอนุญาต</option>
+            {licenses.map((l) => <option value={l}>{l}</option>)}
+          </select>
+
+          <select id="nd-f-feat" aria-label="กรองตามความสามารถ">
+            <option value="">ทุกความสามารถ</option>
+            <option value="tools">เรียกเครื่องมือได้</option>
+            <option value="thinking">คิดเป็นขั้นตอน</option>
+            <option value="vision">ดูรูปได้</option>
+            <option value="moe">MoE</option>
+          </select>
+
+          <select id="nd-sort" aria-label="เรียงลำดับ">
+            <option value="size">เรียงตามขนาด</option>
+            <option value="grade">เรียงตามเกรด</option>
+            <option value="speed">เรียงตามความเร็ว</option>
+            <option value="new">เรียงตามใหม่สุด</option>
+            <option value="name">เรียงตามชื่อ</option>
+          </select>
+        </section>
+
+        <section class="nd-ruler" aria-label="เปรียบเทียบขนาดโมเดลกับเครื่องของคุณ">
+          <div class="nd-scale" aria-hidden="true">
+            <span></span>
+            <div class="nd-scale-track">
+              <span class="nd-scale-tick" style="--at: 0%">0</span>
+              <span class="nd-scale-tick" style="--at: 25%">12</span>
+              <span class="nd-scale-tick" style="--at: 50%">24</span>
+              <span class="nd-scale-tick" style="--at: 75%">36</span>
+              <span class="nd-scale-tick nd-scale-tick-end" style="--at: 100%">48 GB</span>
+            </div>
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+
+          <div class="nd-row nd-row-you">
+            <div class="nd-row-grade"></div>
+            <div class="nd-row-name">
+              <span class="nd-row-title">ความจุของเครื่องคุณ</span>
+              <span class="nd-row-meta" id="nd-cap-meta">หน่วยความจำการ์ดจอ (VRAM)</span>
+            </div>
+            <div class="nd-track nd-track-you">
+              <div class="nd-bar nd-bar-you" id="nd-cap-bar"></div>
+              <span class="nd-limit-tag" id="nd-limit-tag">16 GB</span>
+            </div>
+            <div class="nd-row-num"></div>
+            <div class="nd-row-speed"></div>
+            <div class="nd-row-chip"></div>
+          </div>
+
+          <p class="nd-help">
+            แถบของแต่ละโมเดลคือหน่วยความจำที่ต้องใช้ที่ระดับบีบอัด Q4_K_M
+            วัดบนไม้บรรทัดเดียวกันทั้งหน้า แถบที่หยุดก่อนเส้นสีส้มคือรันได้
+            ส่วนที่ล้ำเส้นออกไปต้องยืม RAM มาช่วย ทำให้ช้าลงมาก
+          </p>
+
+          <ol class="nd-list" id="nd-list">
+            {
+              rows.map((m) => (
+                <li
+                  class="nd-row"
+                  data-id={m.id}
+                  data-vram={m.vram}
+                  data-params={m.paramsBillions}
+                  data-active={m.activeParams}
+                  data-name={m.name.toLowerCase()}
+                  data-provider={m.provider}
+                  data-license={m.license}
+                  data-task={m.useCase.join(",")}
+                  data-tools={m.tools ? "1" : ""}
+                  data-thinking={m.thinking ? "1" : ""}
+                  data-vision={m.vision ? "1" : ""}
+                  data-moe={m.moe ? "1" : ""}
+                >
+                  <div class="nd-row-grade">
+                    <span class="nd-grade" />
+                  </div>
+
+                  <div class="nd-row-name">
+                    <span class="nd-row-title">
+                      {m.name}
+                      {m.tools && <i class="nd-tag" title="เรียกเครื่องมือได้">tool</i>}
+                      {m.thinking && <i class="nd-tag" title="คิดเป็นขั้นตอน">think</i>}
+                      {m.vision && <i class="nd-tag" title="ดูรูปได้">vision</i>}
+                      {m.moe && <i class="nd-tag" title="Mixture of Experts">moe</i>}
+                    </span>
+                    <span class="nd-row-meta">
+                      {m.provider} · {m.params}
+                      {m.moe ? ` (ใช้จริง ${m.activeParams.toFixed(0)}B)` : ""} ·{" "}
+                      {m.useCaseTh} · ctx {m.ctx} · {m.license}
+                      {m.age ? ` · ${m.age}` : ""}
+                    </span>
+                  </div>
+
+                  <div class="nd-track">
+                    <div class="nd-bar" />
+                    {m.vram > RULER_MAX && <span class="nd-over">▶</span>}
+                  </div>
+
+                  <div class="nd-row-num">{m.vram} GB</div>
+                  <div class="nd-row-speed" />
+                  <div class="nd-row-chip">
+                    <span class="nd-status" />
+                  </div>
+                </li>
+              ))
+            }
+          </ol>
+
+          <p class="nd-empty" id="nd-empty" hidden>
+            ไม่มีโมเดลที่ตรงกับตัวกรองนี้ ลองล้างตัวกรองหรือค้นด้วยคำอื่น
+          </p>
+        </section>
+
+        <footer class="nd-foot">
+          <p>
+            ตัวเลขขนาดคือระดับบีบอัด <strong>Q4_K_M</strong> ซึ่งเป็นระดับที่คนใช้กันมากที่สุด
+            เกรดและความเร็ว (tok/s) คำนวณด้วยเอนจินเดียวกับที่เว็บใช้จริง
+            (<strong>evaluateModelComplete</strong>) เครื่องที่ใช้หน่วยความจำร่วมอย่าง Mac
+            นับได้ประมาณ 75% ของ RAM ทั้งหมด
+          </p>
+        </footer>
+      </main>
+    </div>
+
+    <style is:global>
+      :root {
+        --ink: #17162b;
+        --raised: #201f3a;
+        --hair: #2f2d4e;
+        --bone: #e9e3d4;
+        --bone-dim: #9a94a8;
+        --saffron: #e8873c;
+        --jade: #57a894;
+        --clay: #c25742;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        background: var(--ink);
+      }
+
+      body {
+        margin: 0;
+        background: var(--ink);
+        color: var(--bone);
+        font-family: "IBM Plex Sans Thai", system-ui, sans-serif;
+        font-size: 16px;
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .nd-page {
+        max-width: 1240px;
+        margin: 0 auto;
+        padding: 26px 22px 70px;
+      }
+
+      /* ── header ─────────────────────────────────────── */
+      .nd-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+        padding-bottom: 20px;
+        border-bottom: 1px solid var(--hair);
+      }
+
+      .nd-mark {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+      }
+
+      .nd-mark-th {
+        font-family: "Chakra Petch", sans-serif;
+        font-weight: 700;
+        font-size: 21px;
+      }
+
+      .nd-mark-en {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 11px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--bone-dim);
+      }
+
+      .nd-head-note {
+        margin: 0;
+        font-size: 12.5px;
+        color: var(--bone-dim);
+      }
+
+      /* ── hero ───────────────────────────────────────── */
+      .nd-hero {
+        padding: 30px 0 22px;
+      }
+
+      /* Thai takes no tracking — it smears the mark clusters. */
+      .nd-eyebrow {
+        margin: 0 0 12px;
+        font-size: 12.5px;
+        color: var(--bone-dim);
+      }
+
+      .nd-machines {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .nd-chip {
+        font-family: inherit;
+        font-size: 13.5px;
+        color: var(--bone-dim);
+        background: transparent;
+        border: 1px solid var(--hair);
+        border-radius: 2px;
+        padding: 7px 13px;
+        cursor: pointer;
+        transition: color 0.15s, border-color 0.15s, background 0.15s;
+      }
+
+      .nd-chip:hover {
+        color: var(--bone);
+        border-color: var(--bone-dim);
+      }
+
+      .nd-chip.is-on {
+        color: var(--ink);
+        background: var(--bone);
+        border-color: var(--bone);
+        font-weight: 600;
+      }
+
+      .nd-chip-detect {
+        margin-inline-start: auto;
+        color: var(--saffron);
+        border-color: color-mix(in srgb, var(--saffron) 45%, transparent);
+      }
+
+      .nd-chip-detect:hover {
+        color: var(--saffron);
+        border-color: var(--saffron);
+        background: color-mix(in srgb, var(--saffron) 10%, transparent);
+      }
+
+      .nd-chip:focus-visible {
+        outline: 2px solid var(--saffron);
+        outline-offset: 2px;
+      }
+
+      .nd-verdict {
+        margin: 24px 0 0;
+        font-weight: 400;
+        font-size: inherit;
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+
+      /* machine labels can be Thai, so no tracking and no uppercase */
+      .nd-verdict-machine {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12.5px;
+        letter-spacing: 0.02em;
+        color: var(--saffron);
+      }
+
+      .nd-verdict-line {
+        font-family: "Chakra Petch", sans-serif;
+        font-weight: 500;
+        font-size: clamp(27px, 4.6vw, 42px);
+        line-height: 1.14;
+        letter-spacing: -0.015em;
+      }
+
+      .nd-verdict-num {
+        font-weight: 700;
+        color: var(--jade);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .nd-verdict-sub {
+        font-size: 13.5px;
+        color: var(--bone-dim);
+      }
+
+      .nd-verdict-sub:empty {
+        display: none;
+      }
+
+      .nd-detect-msg {
+        margin: 10px 0 0;
+        min-height: 18px;
+        font-size: 13px;
+        color: var(--saffron);
+      }
+
+      /* ── controls ───────────────────────────────────── */
+      .nd-controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 6px 0 18px;
+      }
+
+      .nd-search {
+        flex: 1 1 220px;
+        min-width: 180px;
+      }
+
+      .nd-controls input,
+      .nd-controls select {
+        font-family: inherit;
+        font-size: 13.5px;
+        color: var(--bone);
+        background: var(--raised);
+        border: 1px solid var(--hair);
+        border-radius: 2px;
+        padding: 8px 10px;
+        width: 100%;
+      }
+
+      .nd-controls select {
+        width: auto;
+        cursor: pointer;
+      }
+
+      .nd-controls input:focus-visible,
+      .nd-controls select:focus-visible {
+        outline: 2px solid var(--saffron);
+        outline-offset: 1px;
+      }
+
+      .nd-controls input::placeholder {
+        color: var(--bone-dim);
+      }
+
+      /* ── shared ruler grid ──────────────────────────── */
+      .nd-scale,
+      .nd-row {
+        display: grid;
+        grid-template-columns: 26px minmax(240px, 1.7fr) minmax(0, 2.1fr) 66px 62px 58px;
+        gap: 12px;
+        align-items: center;
+      }
+
+      .nd-scale {
+        padding-bottom: 6px;
+      }
+
+      .nd-scale-track {
+        position: relative;
+        height: 13px;
+      }
+
+      .nd-scale-tick {
+        position: absolute;
+        left: var(--at);
+        transform: translateX(-50%);
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 10.5px;
+        color: var(--bone-dim);
+        white-space: nowrap;
+      }
+
+      .nd-scale-tick-end {
+        transform: translateX(-100%);
+      }
+
+      .nd-row {
+        padding: 7px 0;
+        border-top: 1px solid var(--hair);
+      }
+
+      .nd-row[hidden] {
+        display: none;
+      }
+
+      .nd-row-you {
+        border-top: 1px solid var(--bone-dim);
+        padding: 11px 0;
+      }
+
+      .nd-grade {
+        display: grid;
+        place-items: center;
+        width: 24px;
+        height: 24px;
+        border-radius: 2px;
+        font-family: "Chakra Petch", sans-serif;
+        font-weight: 700;
+        font-size: 13px;
+        color: var(--ink);
+        background: var(--bone-dim);
+      }
+
+      .nd-grade:empty {
+        display: none;
+      }
+
+      .nd-row[data-grade="S"] .nd-grade,
+      .nd-row[data-grade="A"] .nd-grade {
+        background: var(--jade);
+      }
+
+      .nd-row[data-grade="B"] .nd-grade {
+        background: color-mix(in srgb, var(--jade) 62%, var(--bone));
+      }
+
+      .nd-row[data-grade="C"] .nd-grade {
+        background: var(--saffron);
+      }
+
+      .nd-row[data-grade="D"] .nd-grade {
+        background: color-mix(in srgb, var(--saffron) 55%, var(--clay));
+      }
+
+      .nd-row[data-grade="F"] .nd-grade {
+        background: var(--clay);
+        color: var(--bone);
+      }
+
+      .nd-row-name {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+
+      .nd-row-title {
+        font-size: 14px;
+        font-weight: 600;
+        line-height: 1.3;
+      }
+
+      .nd-tag {
+        font-family: "IBM Plex Mono", monospace;
+        font-style: normal;
+        font-size: 9.5px;
+        letter-spacing: 0.04em;
+        color: var(--bone-dim);
+        border: 1px solid var(--hair);
+        border-radius: 2px;
+        padding: 1px 4px;
+        margin-inline-start: 4px;
+        vertical-align: 2px;
+        white-space: nowrap;
+      }
+
+      .nd-row-meta {
+        font-size: 11px;
+        color: var(--bone-dim);
+        line-height: 1.45;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      /* the track: shared scale + the continuous limit line */
+      .nd-track {
+        position: relative;
+        height: 22px;
+        background: color-mix(in srgb, var(--raised) 80%, transparent);
+        border-radius: 1px;
+      }
+
+      .nd-track-you {
+        height: 30px;
+      }
+
+      .nd-track::after {
+        content: "";
+        position: absolute;
+        top: -8px;
+        bottom: -8px;
+        left: var(--limit, 33.33%);
+        width: 2px;
+        background: var(--saffron);
+        z-index: 2;
+        pointer-events: none;
+      }
+
+      .nd-bar {
+        height: 100%;
+        width: 0;
+        border-radius: 1px;
+        background: var(--bone-dim);
+        transition: width 0.45s cubic-bezier(0.22, 0.9, 0.3, 1);
+      }
+
+      .nd-bar-you {
+        background: color-mix(in srgb, var(--bone) 88%, transparent);
+      }
+
+      .nd-row[data-state="can-run"] .nd-bar {
+        background: var(--jade);
+      }
+
+      .nd-row[data-state="tight"] .nd-bar {
+        background: var(--saffron);
+      }
+
+      /* CPU offload made literal: the part that fits in VRAM stays saffron,
+         the part that spills into system RAM turns clay. */
+      .nd-row[data-state="can-run-slow"] .nd-bar {
+        background: linear-gradient(
+          90deg,
+          var(--saffron) 0 var(--split, 50%),
+          color-mix(in srgb, var(--clay) 78%, var(--raised)) var(--split, 50%) 100%
+        );
+      }
+
+      .nd-row[data-state="cannot-run"] .nd-bar {
+        background: var(--clay);
+        opacity: 0.6;
+      }
+
+      .nd-over {
+        position: absolute;
+        right: 4px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 9px;
+        color: var(--bone);
+        z-index: 3;
+      }
+
+      .nd-limit-tag {
+        position: absolute;
+        left: var(--limit, 33.33%);
+        top: 50%;
+        transform: translate(9px, -50%);
+        z-index: 3;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 11px;
+        color: var(--saffron);
+        white-space: nowrap;
+      }
+
+      .nd-row-num,
+      .nd-row-speed {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12px;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .nd-row-num {
+        color: var(--bone);
+      }
+
+      .nd-row-speed {
+        color: var(--bone-dim);
+      }
+
+      .nd-status {
+        font-size: 11.5px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+
+      .nd-row[data-state="can-run"] .nd-status {
+        color: var(--jade);
+      }
+
+      .nd-row[data-state="tight"] .nd-status {
+        color: var(--saffron);
+      }
+
+      .nd-row[data-state="can-run-slow"] .nd-status,
+      .nd-row[data-state="cannot-run"] .nd-status {
+        color: var(--clay);
+      }
+
+      .nd-row[data-state="cannot-run"] .nd-row-title {
+        color: var(--bone-dim);
+        font-weight: 400;
+      }
+
+      .nd-help {
+        margin: 16px 0 20px;
+        font-size: 12.5px;
+        color: var(--bone-dim);
+        max-width: 78ch;
+      }
+
+      .nd-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+
+      .nd-empty {
+        margin: 26px 0;
+        font-size: 13.5px;
+        color: var(--bone-dim);
+      }
+
+      .nd-foot {
+        margin-top: 30px;
+        padding-top: 16px;
+        border-top: 1px solid var(--hair);
+      }
+
+      .nd-foot p {
+        margin: 0;
+        font-size: 12.5px;
+        color: var(--bone-dim);
+        max-width: 82ch;
+      }
+
+      .nd-foot strong {
+        font-family: "IBM Plex Mono", monospace;
+        font-weight: 500;
+        color: var(--bone);
+      }
+
+      /* ── responsive ─────────────────────────────────── */
+      @media (max-width: 900px) {
+        .nd-scale {
+          display: none;
+        }
+
+        .nd-row {
+          grid-template-columns: 26px minmax(0, 1fr) 62px 56px;
+          grid-template-areas:
+            "grade name num speed"
+            "track track track chip";
+          gap: 5px 10px;
+        }
+
+        .nd-row-grade {
+          grid-area: grade;
+        }
+        .nd-row-name {
+          grid-area: name;
+        }
+        .nd-row-num {
+          grid-area: num;
+        }
+        .nd-row-speed {
+          grid-area: speed;
+        }
+        .nd-track {
+          grid-area: track;
+          height: 18px;
+        }
+        .nd-row-chip {
+          grid-area: chip;
+          text-align: right;
+        }
+
+        .nd-track::after {
+          top: 0;
+          bottom: 0;
+        }
+
+        .nd-limit-tag {
+          display: none;
+        }
+
+        .nd-chip-detect {
+          margin-inline-start: 0;
+        }
+
+        .nd-controls select,
+        .nd-search {
+          flex: 1 1 140px;
+          width: auto;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .nd-bar {
+          transition: none;
+        }
+      }
+    </style>
+
+    <script>
+      // Plain JS on purpose: Astro emits this module with a `&lang.ts` suffix and
+      // the HTML parser expands `&lang`, so Vite never sees the .ts hint and would
+      // serve TypeScript unstripped. See CLAUDE.md.
+      const RULER_MAX = 48;
+
+      const rows = Array.from(document.querySelectorAll("#nd-list .nd-row"));
+      const ruler = document.querySelector(".nd-ruler");
+      const capBar = document.getElementById("nd-cap-bar");
+      const capMeta = document.getElementById("nd-cap-meta");
+      const limitTag = document.getElementById("nd-limit-tag");
+      const machineEl = document.getElementById("nd-machine");
+      const countEl = document.getElementById("nd-count");
+      const totalEl = document.getElementById("nd-total");
+      const slowEl = document.getElementById("nd-count-slow");
+      const msgEl = document.getElementById("nd-detect-msg");
+      const emptyEl = document.getElementById("nd-empty");
+      const listEl = document.getElementById("nd-list");
+      const chips = Array.from(document.querySelectorAll(".nd-chip[data-label]"));
+
+      const qEl = document.getElementById("nd-q");
+      const fFit = document.getElementById("nd-f-fit");
+      const fTask = document.getElementById("nd-f-task");
+      const fProvider = document.getElementById("nd-f-provider");
+      const fLicense = document.getElementById("nd-f-license");
+      const fFeat = document.getElementById("nd-f-feat");
+      const sortEl = document.getElementById("nd-sort");
+
+      const STATUS_TH = {
+        "can-run": "สบาย",
+        tight: "ตึงๆ",
+        "can-run-slow": "ช้ามาก",
+        "cannot-run": "ไม่ไหว",
+        unknown: "ไม่รู้",
+      };
+
+      const GRADE_ORDER = { S: 0, A: 1, B: 2, C: 3, D: 4, F: 5, "?": 6 };
+
+      let engine = null;
+      let current = null;
+
+      const pct = (gb) => Math.min(gb / RULER_MAX, 1) * 100;
+
+      // Build a full HardwareInfo so the real engine can score against it.
+      function toHardware(opts) {
+        return {
+          gpuRenderer: opts.label,
+          gpuVendor: null,
+          gpuCores: null,
+          ramGB: opts.ram,
+          estimatedVRAM: opts.apple ? null : opts.vram || null,
+          memoryBandwidth: opts.bw,
+          systemRAM: opts.ram,
+          deviceMemoryRaw: null,
+          webgpu: true,
+          webgpuDevice: null,
+          webgpuArch: null,
+          isAppleSilicon: Boolean(opts.apple),
+          totalUsableRAM: opts.ram,
+          platform: null,
+          cpuBenchmark: null,
+          isMobile: false,
+          deviceName: opts.label,
+        };
+      }
+
+      function usableFor(opts) {
+        if (opts.apple) return Math.round(opts.ram * 0.75 * 10) / 10;
+        return opts.vram || 0;
+      }
+
+      function render(opts) {
+        current = opts;
+        const hw = toHardware(opts);
+        const usable = usableFor(opts);
+        const limit = pct(usable);
+
+        ruler.style.setProperty("--limit", limit + "%");
+        capBar.style.width = limit + "%";
+        limitTag.textContent = usable + " GB";
+        machineEl.textContent = opts.label;
+
+        if (opts.apple) {
+          capMeta.textContent =
+            "หน่วยความจำร่วม " + opts.ram + " GB · ใช้รันโมเดลได้ราว " + usable + " GB";
+        } else if (!opts.vram) {
+          capMeta.textContent = "ไม่มีการ์ดจอแยก · อาศัย RAM " + opts.ram + " GB อย่างเดียว";
+        } else {
+          capMeta.textContent =
+            "หน่วยความจำการ์ดจอ (VRAM) " + opts.vram + " GB · RAM " + opts.ram + " GB";
+        }
+
+        let runnable = 0;
+        let offloaded = 0;
+
+        for (const row of rows) {
+          const need = Number(row.dataset.vram);
+          const params = Number(row.dataset.params);
+          const active = Number(row.dataset.active);
+
+          const ev = engine.evaluateModelComplete(need, hw, params, {
+            activeParamsBillions: active,
+          });
+
+          if (ev.status === "can-run" || ev.status === "tight") runnable++;
+          if (ev.status === "can-run-slow") offloaded++;
+
+          row.dataset.state = ev.status;
+          row.dataset.grade = ev.grade;
+          row.dataset.gradeOrder = GRADE_ORDER[ev.grade];
+          row.dataset.speed = ev.toksPerSec == null ? -1 : ev.toksPerSec;
+
+          row.querySelector(".nd-bar").style.width = pct(need) + "%";
+          row.querySelector(".nd-grade").textContent = ev.grade;
+          row.querySelector(".nd-status").textContent = STATUS_TH[ev.status] || ev.status;
+          row.querySelector(".nd-row-speed").textContent =
+            ev.toksPerSec == null ? "" : ev.toksPerSec + " t/s";
+
+          if (ev.status === "can-run-slow" && usable > 0) {
+            row.style.setProperty("--split", (usable / need) * 100 + "%");
+          } else {
+            row.style.removeProperty("--split");
+          }
+        }
+
+        countEl.textContent = String(runnable);
+        slowEl.textContent = offloaded
+          ? "อีก " + offloaded + " ตัวรันได้ แต่ต้องยืม RAM มาช่วย จะช้ามาก"
+          : "";
+
+        applyFilters();
+      }
+
+      function applyFilters() {
+        const q = qEl.value.trim().toLowerCase();
+        const fit = fFit.value;
+        const task = fTask.value;
+        const provider = fProvider.value;
+        const license = fLicense.value;
+        const feat = fFeat.value;
+
+        let shown = 0;
+
+        for (const row of rows) {
+          const state = row.dataset.state;
+          let ok = true;
+
+          if (q && row.dataset.name.indexOf(q) === -1) ok = false;
+          if (ok && provider && row.dataset.provider !== provider) ok = false;
+          if (ok && license && row.dataset.license !== license) ok = false;
+          if (ok && task && row.dataset.task.split(",").indexOf(task) === -1) ok = false;
+          if (ok && feat && row.dataset[feat] !== "1") ok = false;
+
+          if (ok && fit === "runs") ok = state === "can-run" || state === "tight";
+          if (ok && fit === "any") ok = state !== "cannot-run" && state !== "unknown";
+          if (ok && fit === "no") ok = state === "cannot-run";
+
+          row.hidden = !ok;
+          if (ok) shown++;
+        }
+
+        emptyEl.hidden = shown > 0;
+        totalEl.textContent = String(shown);
+        applySort();
+      }
+
+      function applySort() {
+        const mode = sortEl.value;
+        const visible = rows.filter((r) => !r.hidden);
+
+        visible.sort((a, b) => {
+          if (mode === "size") return a.dataset.vram - b.dataset.vram;
+          if (mode === "grade")
+            return (
+              a.dataset.gradeOrder - b.dataset.gradeOrder ||
+              b.dataset.speed - a.dataset.speed
+            );
+          if (mode === "speed") return b.dataset.speed - a.dataset.speed;
+          if (mode === "name") return a.dataset.name.localeCompare(b.dataset.name);
+          return 0;
+        });
+
+        if (mode !== "new") {
+          for (const row of visible) listEl.appendChild(row);
+        }
+      }
+
+      function readChip(chip) {
+        return {
+          label: chip.dataset.label,
+          vram: Number(chip.dataset.vram || 0),
+          ram: Number(chip.dataset.ram),
+          bw: Number(chip.dataset.bw),
+          apple: chip.dataset.apple === "1",
+        };
+      }
+
+      function selectChip(chip) {
+        for (const c of chips) {
+          c.classList.remove("is-on");
+          c.setAttribute("aria-checked", "false");
+        }
+        if (chip) {
+          chip.classList.add("is-on");
+          chip.setAttribute("aria-checked", "true");
+        }
+      }
+
+      for (const chip of chips) {
+        chip.addEventListener("click", () => {
+          selectChip(chip);
+          msgEl.textContent = "";
+          render(readChip(chip));
+        });
+      }
+
+      for (const el of [qEl, fFit, fTask, fProvider, fLicense, fFeat]) {
+        el.addEventListener("input", applyFilters);
+      }
+      sortEl.addEventListener("change", applySort);
+
+      document.getElementById("nd-detect").addEventListener("click", async () => {
+        msgEl.textContent = "กำลังตรวจเครื่อง…";
+        try {
+          const hw = await engine.detectHardware();
+          const usable = hw.isAppleSilicon
+            ? hw.totalUsableRAM
+            : hw.estimatedVRAM;
+          if (!usable) {
+            msgEl.textContent =
+              "ตรวจการ์ดจอไม่ได้จากเบราว์เซอร์นี้ เลือกเครื่องที่ใกล้เคียงจากรายการด้านบนแทน";
+            return;
+          }
+          selectChip(null);
+          msgEl.textContent = "";
+          render({
+            label: engine.getDisplayName(hw),
+            vram: hw.estimatedVRAM || 0,
+            ram: hw.totalUsableRAM || hw.systemRAM || 8,
+            bw: hw.memoryBandwidth || 50,
+            apple: hw.isAppleSilicon,
+          });
+        } catch (e) {
+          msgEl.textContent =
+            "ตรวจเครื่องอัตโนมัติไม่ได้ เลือกเครื่องที่ใกล้เคียงจากรายการด้านบนแทน";
+        }
+      });
+
+      // load the real engine, then do the one orchestrated moment
+      import("@canirun/compatibility").then((mod) => {
+        engine = mod;
+        const start = chips.find((c) => c.classList.contains("is-on"));
+        requestAnimationFrame(() => render(readChip(start)));
+      });
+    </script>
+  </body>
+</html>

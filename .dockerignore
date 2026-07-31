@@ -1,0 +1,24 @@
+.git
+.github
+node_modules
+packages/*/node_modules
+packages/*/dist
+# runai's source is excluded (node-llama-cpp drags in a native toolchain the
+# website never uses) but its manifest must survive: the Dockerfile copies it so
+# the workspace matches pnpm-lock.yaml, which --frozen-lockfile requires.
+packages/runai/*
+!packages/runai/package.json
+dist
+.vercel
+.astro
+test-results
+out
+docs
+*.md
+!README.md
+.vscode
+.claude
+.agents
+.DS_Store
+.env
+.env.*
