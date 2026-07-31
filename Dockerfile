@@ -28,6 +28,15 @@ COPY . .
 ARG SITE_URL=https://ainaidee.com
 ENV SITE_URL=$SITE_URL
 
+# Blog (Ghost), planned — see docs/blog-plan.md. Posts are fetched at build
+# time only (src/lib/ghost.ts), never at runtime, so these are build ARGs, not
+# runtime environment. Left unset, the blog routes build a "coming soon" page
+# instead of failing — safe to leave both empty until Ghost is actually live.
+ARG GHOST_URL=""
+ARG GHOST_CONTENT_API_KEY=""
+ENV GHOST_URL=$GHOST_URL
+ENV GHOST_CONTENT_API_KEY=$GHOST_CONTENT_API_KEY
+
 RUN pnpm build
 
 # ─── runtime ──────────────────────────────────────────────────────────────

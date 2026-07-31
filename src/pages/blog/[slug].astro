@@ -1,0 +1,90 @@
+---
+import Layout from "@/layouts/Layout.astro"
+import NavHeader from "@/components/NavHeader.astro"
+import Footer from "@/components/Footer.astro"
+import IconArrowLeft from "@/icons/arrow-left.svg"
+import { getPosts, type GhostPost } from "@/lib/ghost"
+
+export async function getStaticPaths() {
+  const posts = await getPosts()
+  return posts.map((post) => ({
+    params: { slug: post.slug },
+    props: { post },
+  }))
+}
+
+const { post } = Astro.props as { post: GhostPost }
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  })
+}
+
+const author = post.authors?.[0]?.name ?? "AiNaiDee"
+const ogImage = post.feature_image ?? `/og/blog/${post.slug}.jpg`
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  headline: post.title,
+  description: post.meta_description ?? post.excerpt,
+  image: post.feature_image ?? undefined,
+  datePublished: post.published_at,
+  author: { "@type": "Person", name: author },
+}
+---
+
+<Layout
+  title={post.meta_title || `${post.title} — AiNaiDee Blog`}
+  description={post.meta_description || post.excerpt}
+  image={ogImage}
+  type="article"
+>
+  <Fragment slot="head">
+    <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+  </Fragment>
+
+  <NavHeader />
+  <main class="mx-auto max-w-3xl px-4 py-12 sm:px-6">
+    <a
+      href="/blog"
+      class="mb-8 inline-flex items-center gap-1.5 font-mono text-xs text-primary/70 transition-colors hover:text-accent"
+    >
+      <IconArrowLeft class="size-3" />
+      back to blog
+    </a>
+
+    <header class="mb-8">
+      <h1 class="font-pixel text-2xl tracking-tight text-primary sm:text-3xl">
+        {post.title}
+      </h1>
+      <div class="mt-3 flex items-center gap-3 font-mono text-xs text-muted">
+        <span>{author}</span>
+        <span>·</span>
+        <time datetime={post.published_at}>{formatDate(post.published_at)}</time>
+        <span>·</span>
+        <span>{post.reading_time} min read</span>
+      </div>
+    </header>
+
+    {
+      post.feature_image && (
+        <img
+          src={post.feature_image}
+          alt=""
+          class="mb-8 w-full rounded-lg border border-edge"
+        />
+      )
+    }
+
+    <div
+      class="prose prose-invert max-w-none text-base leading-relaxed text-secondary [&_a]:text-accent [&_h2]:font-pixel [&_h2]:text-primary [&_h3]:font-pixel [&_h3]:text-primary [&_img]:rounded-lg [&_img]:border [&_img]:border-edge [&_code]:rounded [&_code]:bg-surface [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-primary [&_pre]:rounded-md [&_pre]:bg-surface [&_pre]:p-3"
+      set:html={post.html}
+    />
+
+    <Footer />
+  </main>
+</Layout>
