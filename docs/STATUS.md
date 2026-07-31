@@ -1,6 +1,47 @@
 # AiNaiDee — project status
 
-**Last updated: 2026-07-31.** Start here when picking the project back up.
+**Last updated: 2026-08-01.** Start here when picking the project back up.
+
+---
+
+## สรุปสั้นๆ (อ่านตอนเช้า) — 2026-08-01
+
+**บล็อกขึ้นจริงแล้ว**: `ghost` + `ghost-db` รันอยู่บนเซิร์ฟเวอร์, `blog.ainaidee.com` ตอบ 200 ผ่าน
+Caddy แล้ว (ยังโชว์ "coming soon" เพราะยังไม่มี Ghost owner account/Content API key) หน้าแรก
+`ainaidee.com` เปลี่ยน branding จาก "CanIRun.ai" เป็น "AiNaiDee" แล้วด้วย ทุก commit push ขึ้น
+`origin/main` เรียบร้อย (`924b82f`, `ec89261`, `f958b88`)
+
+ทำเสร็จวันนี้:
+
+1. **ตั้ง `GHOST_DB_PASSWORD`** ใน `.env` บนเซิร์ฟเวอร์ (คุณตั้งเอง ไม่ผ่านแชท) แล้วเปิด `ghost` +
+   `ghost-db` (MySQL 8) — เจอ error ชั่วคราวตอน MySQL ยัง init ไม่เสร็จ (ghost ต่อไม่ติดรอบแรก) แต่
+   Docker restart policy จัดการเองจนติด ไม่ต้องทำอะไรเพิ่ม
+2. **เจอว่า `docker-compose.yml` บนเซิร์ฟเวอร์เก่ากว่า commit `c9a5f87`** (deploy เดิมเป็น scp ไฟล์
+   เดี่ยวๆ ไม่ใช่ git pull) เลย sync ใหม่ทั้ง repo ผ่าน `git archive HEAD` + rebuild image
+3. **ค้นพบว่า domain อยู่หลัง Imperva Incapsula (CWAF)** — ตอนแรกพยายามให้ Caddy ขอใบรับรอง TLS เอง
+   จาก Let's Encrypt แต่ทำไม่ได้เลย เพราะ Imperva ดัก request ไว้ก่อนถึงเซิร์ฟเวอร์เราเสมอ (ACME
+   challenge เลยไปไม่ถึง) — เปลี่ยนแผน: Caddy ไม่ทำ TLS อีกต่อไป (`auto_https off`) แค่ทำหน้าที่แยก
+   traffic ตาม Host header บนพอร์ต `8587` เดียว (Imperva เป็นคนทำ TLS ให้อยู่แล้ว และ forward มาที่
+   origin `:8587` เหมือนกันทั้ง `ainaidee.com`, `www`, `blog`)
+4. **เขียน routing ให้ `blog.ainaidee.com`** — rewrite path เป็น `/blog{uri}` ให้ตรงกับ
+   `src/pages/blog/*` พร้อม passthrough สำหรับ `/_astro/*`, `/og/*`, `/blog`, `/favicon.svg` (ไม่งั้น
+   ลิงก์/รูป/asset ที่เป็น root-relative path จะ 404 เพราะโดน rewrite ซ้อน)
+5. **ปิดไม่ให้ Ghost admin (`/ghost*`) เข้าถึงจากอินเทอร์เน็ตได้เลย** — bind แค่
+   `127.0.0.1:2368` เข้าถึงผ่าน SSH tunnel เท่านั้น (`ssh -L 2368:localhost:2368
+   deploy@203.0.113.10` แล้วเปิด `http://localhost:2368/ghost`) กันไม่ให้คนอื่นแย่งสร้าง owner
+   account ก่อนคุณ
+6. **เอา "CanIRun.ai" ออกจากหน้าแรก** — เปลี่ยนเป็น "AiNaiDee" ใน nav logo, `<title>`, og:site_name,
+   structured data, และ heading หลัก ยังเหลือแค่ลิงก์ GitHub (`github.com/midudev/canirun.ai`) ที่
+   ยังไม่เปลี่ยน เพราะยังไม่มี public repo ของ fork นี้ให้ชี้ไป
+
+**ยังติดอยู่ที่คุณ**:
+
+1. เปิด SSH tunnel แล้วสร้าง Ghost owner account + Content API key เอง (ข้อ 5 ด้านบน) — ส่ง
+   `GHOST_URL` + `GHOST_CONTENT_API_KEY` มาแล้วจะ rebuild ให้ `/blog` เลิกโชว์ "coming soon"
+2. อยากให้ลิงก์ GitHub เปลี่ยนไปชี้ repo ของ fork นี้ (`github.com/kovitking/AiNaiDee`) แทน
+   `midudev/canirun.ai` ไหม
+3. รายการเดิมจาก 2026-07-31 ที่ยังไม่ตัดสินใจ (DNS/email TLS กลายเป็นไม่เกี่ยวแล้วเพราะใช้ Imperva
+   แทน Caddy ทำ TLS — แต่ข้ออื่นในหัวข้อ "Blocked on you" ด้านล่างยังตรงอยู่)
 
 ---
 
