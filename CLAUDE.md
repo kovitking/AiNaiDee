@@ -10,21 +10,25 @@ which open-weight LLMs that machine can run. All detection and scoring is client
 server-side hardware processing.
 
 Fork goals are recorded in `docs/idea.md` and `docs/draft-plan.md` (Thai): add Thai/SEA models
-(Typhoon, OpenThaiGPT, SeaLLM, WangchanX), add a fine-tuning/LoRA feasibility mode alongside the
-existing inference-only check, localize the UI to Thai, and add a blog. None of that is built yet —
-every tracked file is still identical to upstream. The only fork work on disk is untracked: the
-`/design` proposal page, the Docker/Caddy setup, and `docs/`.
+(Typhoon, OpenThaiGPT, SeaLLM, WangchanX — not yet added), add a fine-tuning/LoRA feasibility mode
+alongside the existing inference-only check, localize the UI to Thai, and add a blog (Astro side
+now scaffolded, see "Blog" below). The `/design` proposal page, Docker/Caddy setup, `docs/`, the
+Vercel→Node migration and the blog scaffold are all built and committed; applying `/design` to the
+real home page and Thai localization are not.
 
 ## State of this checkout
 
-The Vercel → Node migration described in `docs/STATUS.md` and `docs/deploy.md` **is now applied**
-(2026-07-31): `astro.config.mjs` uses `node({ mode: 'standalone' })` and reads `SITE_URL`,
-`package.json` pins `@astrojs/node@10.1.0`, `vercel.json` is deleted, and the lockfile matches.
-`pnpm build` emits `dist/client` + `dist/server/entry.mjs`.
+The Vercel → Node migration described in `docs/deploy.md` is applied: `astro.config.mjs` uses
+`node({ mode: 'standalone' })` and reads `SITE_URL`, `package.json` pins `@astrojs/node@10.1.0`,
+`vercel.json` is deleted, and the lockfile matches. `pnpm build` emits `dist/client` +
+`dist/server/entry.mjs`.
 
-**Everything is still untracked on `main` and unpushed.** The Docker setup, `docs/`, the `/design`
-page and these config edits exist only as files in a OneDrive folder. There is no `ainaidee/setup`
-branch here. Committing is the outstanding risk.
+**This is committed and pushed.** The repo lives at `github.com/kovitking/AiNaiDee` (origin), branch
+`main`, and is deployed — see "Currently deployed" under Deployment. Before assuming otherwise, run
+`git status`; uncommitted changes at any given moment are normal in-progress work, not a sign the
+fork work itself is unlanded. Read `docs/STATUS.md` for the current session's state and open
+questions — it is updated more often than this file and is the better source for "what's true right
+now."
 
 ### Windows toolchain notes
 
@@ -194,6 +198,23 @@ by renaming the class at runtime — if `display` flips from `none` to its real 
 filtering the name. The prefix is now `nd-`. Do not reintroduce `ad-` (or `ads-`, `banner-`,
 `sponsor-`) when the design moves onto the real home page.
 
+### Blog — Astro side built, Ghost not yet deployed
+
+`src/lib/ghost.ts` wraps `@tryghost/content-api`. It reads `GHOST_URL` and `GHOST_CONTENT_API_KEY`
+from the environment; if either is unset, `api` stays `null` and every exported function
+(`getPosts`, `getPost`) returns an empty result instead of throwing, so `/blog` and
+`/blog/[slug].astro` render a "coming soon" state and the rest of the site's build is unaffected.
+`blogConfigured` is the flag pages check to decide which state to render. `src/pages/og/blog/[slug].jpg.ts`
+generates a satori OG image fallback for posts. None of this requires Ghost to be running to build
+or test the site.
+
+`docker-compose.yml` defines `ghost` (image `ghost:6-alpine`) and `ghost-db` (MySQL 8, not SQLite —
+Ghost's Docker image restricts SQLite to `NODE_ENV=development`) behind `profiles: ["blog"]`, so
+they don't start with a normal `docker compose up`. `GHOST_DB_PASSWORD` has no default and fails
+compose validation if unset. Bringing the blog online (domain, first-run Ghost setup, owner account
+creation) is tracked in `docs/blog-plan.md` and `docs/blog-architecture.md` — the account-creation
+step specifically needs a human, not an agent.
+
 ### Other pieces
 
 - **Playground** (`src/pages/playground.astro`) runs real inference in-browser via
@@ -240,8 +261,10 @@ Docker 29.3.0), source at `~/apps/ainaidee`, container `ainaidee-app-1`, `restar
 Plain HTTP on the LAN, no TLS yet. That box already runs ~11 other demo containers, several on
 adjacent ports (8585, 8586) — check `docker ps` before claiming a port.
 
-Deploy loop: rsync/scp the tree up, then `docker compose up -d --build`. The repo has no remote
-carrying this work, so there is nothing to `git pull` on the server yet.
+Deploy loop: rsync/scp the tree up, then `docker compose up -d --build`. The repo is pushed to
+`origin` (`github.com/kovitking/AiNaiDee`), but the server deploy is manual scp, not `git pull` —
+the box hasn't been given pull access to the repo. Switching to `git pull`-based deploys is an open
+option, not yet adopted (see `docs/STATUS.md`, "Blocked on you").
 
 Caddy is still defined in `docker-compose.yml` but sits behind `profiles: ["tls"]`, so it does not
 start. Phase 2, once DNS points at the box: put a real address in the `Caddyfile` `email` line, set
