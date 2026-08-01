@@ -10,12 +10,13 @@ import ModelListContent from "@/components/ModelListContent.astro";
       "@context": "https://schema.org",
       "@type": "WebApplication",
       "name": "AiNaiDee",
-      "url": "https://ainaidee.com",
+      "url": new URL("/", Astro.site).href,
       "description": "ตรวจฮาร์ดแวร์ของคุณและดูว่ารันโมเดล AI ตัวไหนได้บ้าง วิเคราะห์ GPU, CPU และ RAM ในเบราว์เซอร์",
       "applicationCategory": "DeveloperApplication",
       "operatingSystem": "Web Browser",
+      "inLanguage": "th",
       "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
-      "creator": { "@type": "Person", "name": "midudev", "url": "https://midu.dev" }
+      "creator": { "@type": "Organization", "name": "AiNaiDee", "url": new URL("/", Astro.site).href }
     })}></script>
   </Fragment>
   <NavHeader lang="th" hasTranslation={true} />

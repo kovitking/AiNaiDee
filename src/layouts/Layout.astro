@@ -62,7 +62,7 @@ const enAlternateURL = hasTranslation
     <meta name="description" content={description} />
     <meta name="theme-color" content="#17162b" />
     <meta name="robots" content="index, follow" />
-    <meta name="author" content="midudev" />
+    <meta name="author" content="AiNaiDee" />
     <meta name="generator" content={Astro.generator} />
 
     <meta property="og:type" content={type} />
@@ -81,8 +81,8 @@ const enAlternateURL = hasTranslation
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={ogImageURL.href} />
-    <meta name="twitter:creator" content="@midudev" />
-    <meta name="twitter:site" content="@midudev" />
+    {/* No twitter:site/creator until AiNaiDee has its own account — pointing
+        them at someone else's handle is worse than omitting them. */}
 
     <ClientRouter />
     <slot name="head" />
@@ -192,8 +192,13 @@ const enAlternateURL = hasTranslation
         });
       }
 
+      // Called exactly once. Every listener above is delegated on `document`,
+      // which ClientRouter does not replace across navigations, so these keep
+      // working after a swap. Re-running this on "astro:after-swap" would add a
+      // second (third, fourth…) set of handlers, each closing over its own
+      // `popup` — one hover would then stack a popup per navigation, and only
+      // the newest set would know how to hide its own.
       initTooltips();
-      document.addEventListener("astro:after-swap", initTooltips);
     </script>
   </body>
 </html>
