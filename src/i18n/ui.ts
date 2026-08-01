@@ -18,6 +18,9 @@ export const ui = {
       openMenu: "เปิดเมนู",
       closeMenu: "ปิดเมนู",
       switchLang: "English",
+      // The visible label is just the language name, which a screen reader
+      // would announce without saying what the link does.
+      switchLangAria: "อ่านหน้านี้เป็นภาษาอังกฤษ",
       updatedPrefix: "อัปเดต",
       justNow: "เมื่อครู่นี้",
       minsAgo: "นาทีที่แล้ว",
@@ -132,6 +135,7 @@ export const ui = {
       openMenu: "Open menu",
       closeMenu: "Close menu",
       switchLang: "ไทย",
+      switchLangAria: "อ่านหน้านี้เป็นภาษาไทย — read this page in Thai",
       updatedPrefix: "Updated",
       justNow: "just now",
       minsAgo: "min ago",
@@ -239,6 +243,24 @@ export const ui = {
 
 type Dictionary = (typeof ui)[Lang];
 
+/**
+ * Every dotted path in the dictionary that resolves to a string, e.g.
+ * "nav.playground" or "modelList.grades.S".
+ *
+ * `t()` is typed against this rather than plain `string` because a missing key
+ * fails silently: the lookup below falls back to returning the key itself, so a
+ * typo ships as visible UI text ("modelList.gradeWord" rendered to the user)
+ * with no error anywhere. With the union, a typo is a compile error instead.
+ * Thai is the source of truth — a key must exist in `th` to be usable.
+ */
+type StringPaths<T> = {
+  [K in keyof T & string]: T[K] extends string
+    ? K
+    : `${K}.${StringPaths<T[K]>}`;
+}[keyof T & string];
+
+export type TranslationKey = StringPaths<(typeof ui)["th"]>;
+
 function getByPath(obj: unknown, path: string[]): unknown {
   return path.reduce<unknown>((acc, key) => {
     if (acc && typeof acc === "object" && key in acc) {
@@ -249,10 +271,12 @@ function getByPath(obj: unknown, path: string[]): unknown {
 }
 
 export function useTranslations(lang: Lang) {
-  return function t(key: string): string {
+  return function t(key: TranslationKey): string {
     const path = key.split(".");
     const value = getByPath(ui[lang] as Dictionary, path);
     if (typeof value === "string") return value;
+    // A key present in Thai but not yet translated falls back rather than
+    // rendering blank, so a partially-translated locale still reads sensibly.
     const fallback = getByPath(ui[defaultLang] as Dictionary, path);
     if (typeof fallback === "string") return fallback;
     return key;

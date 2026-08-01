@@ -74,6 +74,7 @@ Package manager is **pnpm**, pinned to `11.1.3` via `packageManager`. Do not use
 | `pnpm preview` | serve the production build |
 | `pnpm test` | vitest, 200 tests across 7 files, ~1.5s |
 | `pnpm packages:typecheck` | tsc on both workspace packages, <1s |
+| `pnpm check` | `astro check` over `src/`, `scripts/`, `tests/` — ~15s. **This is the only thing that typechecks `.astro` files and `src/**/*.ts`**; `packages:typecheck` covers neither |
 | `pnpm packages:build` | compiles `packages/compatibility` + `packages/models` to `dist/`, ~1.5s (not `runai`) |
 
 Confirmed on Windows 2026-07-31: 200 tests / 7 files in 688ms, typecheck ~2s, build 30s.
@@ -93,6 +94,13 @@ workspace filter: `pnpm --filter runai <script>`.
 Verification is cheap here — tests and typecheck both finish in about a second. Run them.
 (The upstream Spanish `AGENTS.md` told agents *not* to, on the grounds that these commands are
 slow. That is not true of this repo; see `AGENTS.md` for what still applies.)
+
+`pnpm check` is at **0 errors** as of 2026-08-01 — keep it there. `tsconfig.json` excludes
+`packages/runai` (separate Bun toolchain, checked via `pnpm --filter runai`) and
+`src/pages/design.astro` (stale demo, 79 errors that drowned out everything real). Adding `check`
+immediately caught a live bug: three `scripts/*.ts` used `import.meta.dir`, which is **Bun-only and
+`undefined` under Node/tsx**, so those data-refresh scripts threw when writing their output. The
+rest of `scripts/` already used `import.meta.dirname` correctly.
 
 Data refresh scripts hit external APIs and rewrite committed JSON, so run them only when asked:
 
@@ -180,16 +188,23 @@ can-run → comfortable    tight → tight    can-run-slow → cpu-offload    ca
 Renaming a `ModelStatus` without updating `STATUS_MAP` breaks the public API silently — it type-checks
 and returns wrong strings.
 
-### Write inline `<script>` blocks in plain JavaScript, not TypeScript
+### A `<script>` with *any* attribute is never processed — keep those in plain JavaScript
 
-In dev, Astro emits page scripts as `<script type="module" src="…?astro&type=script&index=0&lang.ts">`.
-The HTML parser expands the `&lang` character reference in that attribute, so Vite never sees the
-`.ts` hint, serves the file untransformed, and the browser dies on the first TypeScript-only token
-(`!`, a generic, a type annotation). The failure is quiet — the module 200s, nothing appears in the
-console, and the page just sits there inert with none of its scripted behaviour applied.
+This entry used to say all inline `<script>` blocks had to be plain JS because Astro served them
+untransformed in dev. **That is not true as written** — re-verified on Astro 6.3.3 (2026-08-01) by
+fetching the dev-served module: `Layout.astro`'s and `ModelListContent.astro`'s script blocks are
+both written in TypeScript and both come back correctly transpiled (`let popup: HTMLDivElement |
+null` → `let popup = null`). A bare `<script>` is processed by Vite and TypeScript in it is fine.
 
-Production is unaffected (the script is bundled to a hashed `.js`), so this only bites in dev.
-Keep client blocks in plain JS, or move the logic into a `src/lib/*.ts` module and import it.
+The real rule is narrower: **Astro treats a `<script>` that carries any attribute as if it had
+`is:inline`**, and inline scripts are shipped verbatim — no TypeScript, no bundling, no npm
+imports. `astro check` reports this as hint `astro(4000)`. So:
+
+- `<script>` — processed. TypeScript is fine.
+- `<script type="application/ld+json" set:html={…}>`, `<script is:inline>`, `<script define:vars>`
+  — verbatim. Must be plain JS, and `define:vars` is the only way to pass server values in.
+
+Prefer a bare `<script>`, or move the logic into a `src/lib/*.ts` module and import it.
 
 ### Never prefix CSS classes with `ad-`
 
@@ -247,6 +262,14 @@ still needs converting) is:
   `useCaseLabel(uses, lang)`) separately, since it's keyed by the model catalog's internal tags
   rather than UI copy. `src/pages/design.astro` (the stale standalone demo) keeps its own private,
   un-migrated copy of the old `USE_CASE_TH` map on purpose — it's out of scope, don't wire it up.
+- **`t()` only accepts keys that exist in the Thai dictionary** — `TranslationKey` is derived from
+  `ui.th` with a recursive mapped type, so a typo is a compile error (caught by `pnpm check`)
+  rather than the key string rendering as visible UI text, which is what the runtime fallback does.
+  Add the Thai entry first; English may lag and falls back to Thai.
+- **`NavHeader`'s links carry a `translated` flag.** Only routes with a real file per locale get a
+  locale-prefixed href — the rest stay unprefixed, because `/en/compare` would 404. Flip the flag
+  when a page gains its `/en/` counterpart. Active state compares the *locale-stripped* path, since
+  `Astro.url.pathname` under `/en/` never equals a bare `/compare`.
 - A component that needs to render in either language takes a `lang?: Lang` prop (default `"th"`)
   and calls `useTranslations(lang)` itself — see `NavHeader.astro`, `Footer.astro`,
   `ModelListContent.astro`. The default matters: callers that don't know about i18n (e.g.
@@ -392,12 +415,31 @@ grep -rhoE "from *[\"'][@a-z][^\"'./][^\"']*[\"']" dist/server/ | sort -u
   playground chat UI's own microcopy (New chat, Search chats, Settings panel, model picker, etc).
   Reuse the `USE_CASE_TH` map (task-category labels) already duplicated in `design.astro` and
   `ModelListContent.astro` rather than inventing new translations for the same terms.
-- **The GitHub icon/link was removed from `NavHeader`/`Footer`**, because the public
-  `kovitking/AiNaiDee` repo has internal deployment IP/SSH-username comments committed in several
-  docs (`docker-compose.yml`, `CLAUDE.md` — yes, this file, `docs/STATUS.md`, `docs/deploy.md`,
-  `docs/deploy-architecture.md`, `docs/blog-plan.md`, `docs/blog-architecture.md`). Removing the
-  site's link to the repo does **not** fix this — the repo is still public and `git log` still has
-  the IP in every one of those files' history. Scrubbing it (or making the repo private) is
-  unresolved; see `docs/STATUS.md` → "Blocked on you".
+- **The GitHub icon/link was removed from `NavHeader`/`Footer`** while the public repo still had
+  internal deployment IP/SSH-username comments in its history. **That is resolved** — the scrub +
+  force-push landed, and a sweep of every commit reachable from `main` (2026-08-01) finds no real
+  IP or username left anywhere; the placeholders (`203.0.113.10` is TEST-NET-3, `deploy@`) are all
+  that remain. Restoring the repo link is now a free choice, not a blocker.
+
+### Done in the 2026-08-01 cleanup — do not "re-fix" these
+
+- **Everything user-visible is de-branded.** `advertise.astro` is **deleted** — it was upstream's
+  ad-sales page and shipped midudev's PayPal client id in a live checkout, built and listed in our
+  sitemap. JSON-LD on `model/[id]` + `device/[id]`, both home pages, the OG image generators, and
+  the tier-list export all derive URLs from `Astro.site` now instead of hardcoding `canirun.ai`.
+  `README.md` was rewritten off upstream's. The **only** remaining `canirun.ai`/`midudev` strings
+  in built HTML are the `Footer.astro` fork credit, which is deliberate MIT attribution — leave it.
+- If you add a monetization page later, **do not put it at `/advertise`**: ad-blocker filter lists
+  match that path directly, the same trap as the `ad-` class prefix below.
+- `out/`, `test-results/`, `.agents/`, `.claude/skills/` and `skills-lock.json` are gitignored now
+  (still on disk). `.dockerignore` already excluded them, so image size was never affected.
+
+Still open:
+
+- `package.json` is still named `canirun-ai` and the workspace packages are still `@canirun/*` —
+  see the first bullet above. This is the last real rebrand item, and it is deliberately deferred
+  because the Dockerfile's `--filter "canirun-ai..."` and `pnpm-lock.yaml` must change in the same
+  commit or the container build breaks.
+- Thai localization is still partial (see the localization bullet above).
 
 Current state, decisions and open questions: **`docs/STATUS.md`**.

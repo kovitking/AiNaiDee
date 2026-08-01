@@ -143,7 +143,7 @@ async function main() {
     await sleep(RATE_LIMIT_MS);
   }
 
-  const outPath = join(import.meta.dir, "../src/data/gguf-sizes.json");
+  const outPath = join(import.meta.dirname, "../src/data/gguf-sizes.json");
   writeFileSync(outPath, JSON.stringify(result, null, 2));
   console.log(`\n✅ Wrote ${matched} model entries to ${outPath}`);
 }

@@ -812,7 +812,8 @@ async function regenerateConversationTitle(id: string) {
         },
         thinkingFormat: getActiveThinkingFormat(),
         capabilities: { vision: caps.vision, audio: caps.audio },
-        audioBlob: null,
+        // GenerateRequest's field is `audio`, and it is optional. "audioBlob"
+        // was never read by the worker; title generation sends no audio.
       },
       Comlink.proxy(noop),
     );

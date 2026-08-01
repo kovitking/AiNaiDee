@@ -14,17 +14,30 @@ const t = useTranslations(lang);
 const currentPath = Astro.url.pathname;
 const buildDate = new Date();
 
+// `translated` marks routes that have a real file per locale. Only those get a
+// locale-prefixed href — everything else still has one language only, so
+// pointing an English visitor at /en/compare would 404. Flip the flag when a
+// page gains its /en/ counterpart and the nav follows automatically; without
+// this the nav would silently drop English visitors back onto Thai pages.
 const links = [
-  { href: "/playground", label: t("nav.playground") },
-  { href: "/compare", label: t("nav.compare") },
-  { href: "/tier", label: t("nav.tier") },
-  { href: "/docs", label: t("nav.docs") },
-  { href: "/why", label: t("nav.why") },
+  { path: "/playground", label: t("nav.playground"), translated: false },
+  { path: "/compare", label: t("nav.compare"), translated: false },
+  { path: "/tier", label: t("nav.tier"), translated: false },
+  { path: "/docs", label: t("nav.docs"), translated: false },
+  { path: "/why", label: t("nav.why"), translated: false },
   // Points at the in-repo /blog route for now. Once Caddy maps
   // blog.ainaidee.com -> app:4321/blog/* (see docs/blog-architecture.md),
   // this should become an absolute link to the subdomain instead.
-  { href: "/blog", label: t("nav.blog") },
-];
+  { path: "/blog", label: t("nav.blog"), translated: false },
+].map(({ path, label, translated }) => ({
+  label,
+  href: translated
+    ? getRelativeLocaleUrl(lang, path.replace(/^\//, ""))
+    : path,
+  // Compare against the locale-stripped path so the active state still
+  // resolves under /en/, where currentPath never equals a bare "/compare".
+  path,
+}));
 
 const otherLang: Lang = lang === "th" ? "en" : "th";
 const pathWithoutLocale = lang === "en"
@@ -33,6 +46,9 @@ const pathWithoutLocale = lang === "en"
 const switchHref = hasTranslation
   ? getRelativeLocaleUrl(otherLang, pathWithoutLocale.replace(/^\//, ""))
   : null;
+
+// Trailing slashes vary by route ("/why" vs "/why/"), so normalise both sides.
+const activePath = pathWithoutLocale.replace(/\/$/, "") || "/";
 ---
 
 <nav class="border-b border-edge/40">
@@ -50,12 +66,13 @@ const switchHref = hasTranslation
     <div class="flex items-center gap-1 sm:gap-4">
       {/* Desktop links */}
       <div class="hidden items-center gap-4 font-mono text-[13px] sm:flex">
-        {links.map(({ href, label }) => (
+        {links.map(({ href, label, path }) => (
           <a
             href={href}
+            aria-current={activePath === path ? "page" : undefined}
             class:list={[
               "transition-colors hover:text-accent",
-              currentPath === href ? "text-primary" : "text-primary/70",
+              activePath === path ? "text-primary" : "text-primary/70",
             ]}
           >
             [{label}]
@@ -64,8 +81,10 @@ const switchHref = hasTranslation
         {switchHref && (
           <a
             href={switchHref}
+            hreflang={otherLang}
+            lang={otherLang}
             class="transition-colors text-primary/70 hover:text-accent"
-            aria-label={t("nav.switchLang")}
+            aria-label={t("nav.switchLangAria")}
           >
             [{t("nav.switchLang")}]
           </a>
@@ -114,12 +133,13 @@ const switchHref = hasTranslation
   </div>
 
   <div class="flex flex-1 flex-col items-center justify-center gap-6">
-    {links.map(({ href, label }) => (
+    {links.map(({ href, label, path }) => (
       <a
         href={href}
+        aria-current={activePath === path ? "page" : undefined}
         class:list={[
           "mobile-menu-link font-mono text-2xl transition-colors hover:text-accent",
-          currentPath === href ? "text-accent" : "text-primary/70",
+          activePath === path ? "text-accent" : "text-primary/70",
         ]}
       >
         [{label}]
@@ -128,6 +148,9 @@ const switchHref = hasTranslation
     {switchHref && (
       <a
         href={switchHref}
+        hreflang={otherLang}
+        lang={otherLang}
+        aria-label={t("nav.switchLangAria")}
         class="mobile-menu-link font-mono text-2xl transition-colors text-primary/70 hover:text-accent"
       >
         [{t("nav.switchLang")}]

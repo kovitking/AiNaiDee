@@ -2,6 +2,9 @@
 import Layout from "@/layouts/Layout.astro";
 import NavHeader from "@/components/NavHeader.astro";
 import ModelListContent from "@/components/ModelListContent.astro";
+import { useTranslations } from "@/i18n/ui";
+
+const t = useTranslations("en");
 ---
 
 <Layout
@@ -29,10 +32,10 @@ import ModelListContent from "@/components/ModelListContent.astro";
   <ModelListContent lang="en">
     <header slot="header" class="mb-10 text-center">
       <h1 class="font-pixel text-3xl tracking-tight text-accent sm:text-4xl">
-        Which AI can your machine run?
+        {t("home.title")}
       </h1>
       <p class="mt-2 text-base text-muted">
-        Find out which AI models your machine can actually run.
+        {t("home.subtitle")}
       </p>
     </header>
   </ModelListContent>

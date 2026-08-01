@@ -1,6 +1,29 @@
 # AiNaiDee — project status
 
-**Last updated: 2026-08-01 (night session).** Start here when picking the project back up.
+**Last updated: 2026-08-01 (night session, after deploy).** Start here when picking the project back up.
+
+---
+
+## Deploy สำเร็จ + เจอบั๊ก SITE_URL เดิม — 2026-08-01 ดึกมาก
+
+Push `main` ขึ้น `origin` แล้ว, deploy ขึ้น production จริงแล้วด้วย archive-and-swap ตามขั้นตอนเดิม
+(`~/apps/ainaidee` เดิม → backup `ainaidee_backup_20260801_153151`, ของใหม่สลับเข้าแทน) ยืนยันแล้วว่า
+`ainaidee.com`, `ainaidee.com/en/`, `www.ainaidee.com`, `blog.ainaidee.com`, `/why` (หน้าที่ไม่ได้แตะ)
+ตอบ 200 ปกติหมด
+
+**เจอบั๊กเดิมที่มีอยู่ก่อนหน้านี้แล้ว (ไม่เกี่ยวกับงานวันนี้โดยตรง แต่เจอระหว่างตรวจ deploy)**:
+`SITE_URL` ไม่เคยถูกตั้งค่าจริงใน `.env` บน server เลยตั้งแต่แรก (เช็คแล้วว่า `.env` เดิมก่อน deploy
+วันนี้ก็ไม่มีเหมือนกัน) เว็บเลยพึ่ง fallback default ใน `docker-compose.yml` (`${SITE_URL:-...}`)
+มาตลอด ซึ่งก่อนหน้านี้ค่า fallback เป็น IP ภายในจริง (`172.16.57.192:8587`) — sitemap/canonical/OG
+image/hreflang เลยชี้ผิดเป็น IP แทนโดเมนจริงมาตลอด ไม่มีใครสังเกตเห็น พอ session เช้านี้แก้ IP leak
+(เปลี่ยนค่า fallback เป็น placeholder `203.0.113.10`) บั๊กเดิมนี้เลยโผล่ชัดขึ้น (sitemap ชี้ไป IP
+ปลอมแทน) ตรวจเจอตอน verify deploy วันนี้ แก้แล้วโดยเพิ่ม `SITE_URL=https://ainaidee.com` ใน `.env`
+บน server จริง แล้ว rebuild+redeploy ใหม่อีกรอบ (`SITE_URL` bake ตอน build ไม่ใช่ runtime เปลี่ยนแล้ว
+ต้อง rebuild เสมอ) ยืนยันแล้วว่า sitemap/canonical/OG ทั้งหมดชี้ `https://ainaidee.com` ถูกต้องแล้ว
+
+**บทเรียน**: `docker-compose.yml`'s fallback default ควรเป็นแค่ safety net เท่านั้น ไม่ควรพึ่งมันจริงจัง
+— `.env` บน productionควรตั้ง `SITE_URL` ให้ชัดเจนเสมอ ไม่งั้นจะเงียบๆ พังแบบนี้อีกได้ถ้า
+`docker-compose.yml`'s fallback เปลี่ยนอีกในอนาคต
 
 ---
 

@@ -13,6 +13,7 @@
     "fetch:readmes": "tsx scripts/fetch-ollama-readmes.ts",
     "packages:build": "pnpm --filter @canirun/compatibility --filter @canirun/models build",
     "packages:typecheck": "pnpm --filter @canirun/compatibility --filter @canirun/models typecheck",
+    "check": "pnpm packages:build && astro check",
     "test": "vitest run"
   },
   "dependencies": {
@@ -38,6 +39,7 @@
     "tailwindcss": "4.3.0"
   },
   "devDependencies": {
+    "@astrojs/check": "^0.9.10",
     "@types/tryghost__content-api": "1.3.17",
     "@webgpu/types": "0.1.70",
     "tsx": "4.22.1",

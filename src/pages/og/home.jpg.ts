@@ -101,7 +101,8 @@ export const GET: APIRoute = async () => {
     },
   });
 
-  return new Response(jpeg, {
+  // Buffer satisfies BodyInit at runtime but not in TS lib types; wrap it.
+  return new Response(new Uint8Array(jpeg), {
     headers: { 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=31536000, immutable' },
   });
 };
