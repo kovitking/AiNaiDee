@@ -2,6 +2,13 @@
 dist/
 .vercel/
 
+# scratch output from the data-refresh scripts (scripts/scrape-ollama.ts writes
+# out/ollama_models.json). Nothing in src/ reads it — it is a working artifact.
+out/
+
+# vitest run state
+test-results/
+
 # generated types
 .astro/
 
@@ -25,3 +32,16 @@ pnpm-debug.log*
 
 # local agent settings
 .claude/settings.local.json
+
+# Vendored agent skill bundle — local tooling, not part of the site. Kept on
+# disk but out of the repo: it is reference material rather than repo policy,
+# and deploy-to-vercel actively contradicts this fork's Docker/Node direction.
+# (.claude/skills/* are symlinks into .agents/skills/*, so both go together.)
+.agents/
+.claude/skills/
+
+# rendered copy of docs/deploy-architecture.md — keep only the markdown source
+docs/deploy-architecture.html
+
+# lockfile for the vendored skill bundle above
+skills-lock.json

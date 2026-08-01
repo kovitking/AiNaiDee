@@ -16,12 +16,13 @@ import ModelListContent from "@/components/ModelListContent.astro";
       "@context": "https://schema.org",
       "@type": "WebApplication",
       "name": "AiNaiDee",
-      "url": "https://ainaidee.com/en",
+      "url": new URL("/en/", Astro.site).href,
       "description": "Detect your hardware and find out which AI models you can run locally. GPU, CPU, and RAM analysis in your browser.",
       "applicationCategory": "DeveloperApplication",
       "operatingSystem": "Web Browser",
+      "inLanguage": "en",
       "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
-      "creator": { "@type": "Person", "name": "midudev", "url": "https://midu.dev" }
+      "creator": { "@type": "Organization", "name": "AiNaiDee", "url": new URL("/", Astro.site).href }
     })}></script>
   </Fragment>
   <NavHeader lang="en" hasTranslation={true} />

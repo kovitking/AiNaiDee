@@ -52,7 +52,7 @@ export const GET: APIRoute = async () => {
                       type: 'span',
                       props: {
                         style: { fontSize: 28, color: '#22c55e', fontWeight: 700 },
-                        children: 'CanIRun.ai',
+                        children: 'AiNaiDee',
                       },
                     },
                   ],
@@ -91,7 +91,7 @@ export const GET: APIRoute = async () => {
                 type: 'div',
                 props: {
                   style: { fontSize: 20, color: '#56565f', marginTop: '24px' },
-                  children: 'canirun.ai — GPU, CPU, and RAM analysis in your browser',
+                  children: 'ainaidee.com — GPU, CPU, and RAM analysis in your browser',
                 },
               },
             ],

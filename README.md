@@ -1,25 +1,33 @@
 <div align="center">
 
-<img src="public/favicon.svg" alt="CanIRun.ai" width="80" height="80" />
+<img src="public/favicon.svg" alt="AiNaiDee" width="80" height="80" />
 
-# CanIRun.ai
+# AiNaiDee — เอไอ ไหน ดี?
 
-**Find out which AI models your hardware can run locally — in seconds.**
+**เครื่องคุณรัน AI ตัวไหนได้บ้าง? — Find out which AI models your machine can run locally.**
 
 Your browser detects your CPU, RAM and GPU automatically.\
-No installs, no benchmarks, no guesswork.
+No installs, no benchmarks, no guesswork. Nothing leaves your machine.
 
-[**canirun.ai**](https://canirun.ai) · [Report Bug](https://github.com/midudev/canirun.ai/issues) · [Request Model](https://github.com/midudev/canirun.ai/issues)
+[**ainaidee.com**](https://ainaidee.com) · [Report Bug](https://github.com/kovitking/AiNaiDee/issues) · [Request Model](https://github.com/kovitking/AiNaiDee/issues)
 
 </div>
 
 ---
 
+> **A fork of [midudev/canirun.ai](https://github.com/midudev/canirun.ai)** (MIT), rebuilt for a
+> Thai and Southeast Asian audience: Thai-first UI, a Thai/English bilingual site, a visual
+> redesign, and a self-hosted Docker deployment in place of Vercel. All credit for the original
+> compatibility engine and the idea goes to [midudev](https://midu.dev).
+
 ## Why
 
-Cloud AI APIs are expensive, rate-limited, and send your data to third parties. Running models locally gives you **privacy, speed, and zero cost per token** — but only if your hardware is up to the job.
+Cloud AI APIs are expensive, rate-limited, and send your data to third parties. Running models
+locally gives you **privacy, speed, and zero cost per token** — but only if your hardware is up to
+the job.
 
-CanIRun.ai answers that question instantly. Open the site, let it detect your hardware, and see a personalized compatibility report for **68+ open-weight models** with grades from S to F.
+AiNaiDee answers that question instantly. Open the site, let it detect your hardware, and see a
+personalized compatibility report for **83 open-weight models** graded from S to F.
 
 ## How It Works
 
@@ -27,10 +35,13 @@ CanIRun.ai answers that question instantly. Open the site, let it detect your ha
 Browser APIs → Hardware Detection → Model Matching → Personalized Grades
 ```
 
-1. **Hardware detection** runs entirely client-side using WebGL, WebGPU, `navigator.deviceMemory` and a lightweight CPU micro-benchmark.
-2. Each model's VRAM requirements are calculated across **7 quantization levels** (Q2_K → F16) from parameter count.
-3. A scoring algorithm combines run status, estimated tokens/second, memory headroom and model size into a **letter grade (S–F)**.
-4. Results are displayed instantly — nothing is sent to any server.
+1. **Hardware detection** runs entirely client-side using WebGL, WebGPU, `navigator.deviceMemory`
+   and a lightweight CPU micro-benchmark.
+2. Each model's memory requirement is derived across **7 quantization levels** (Q2_K → F16) from its
+   parameter count, then overridden with real measured GGUF sizes where available.
+3. A scoring algorithm combines run status, estimated tokens/second, memory headroom and model size
+   into a **letter grade (S–F)**.
+4. Results are displayed instantly — **nothing is sent to any server**.
 
 ### Supported hardware
 
@@ -41,26 +52,33 @@ Browser APIs → Hardware Detection → Model Matching → Personalized Grades
 | **Intel** Arc A-series | WebGL renderer string + GPU database |
 | **Apple Silicon** M1–M4 (Pro, Max, Ultra) | WebGL + unified memory lookup |
 | **Mobile** (iOS / Android) | Screen resolution, benchmark, Adreno/Mali/Immortalis DB |
+| **Single-board computers** | Dedicated SBC database |
+
+Hardware support lives in lookup tables, not in detection logic — see
+[Contributing](#contributing).
 
 ## Features
 
-- **Zero-install hardware detection** — CPU cores, RAM, GPU model, VRAM and memory bandwidth identified from the browser
-- **68+ AI models** — from TinyLlama 1.1B to Llama 4 Maverick 128E and Qwen3 Coder 480B
-- **7 quantization levels per model** — Q2_K, Q3_K_M, Q4_K_M, Q5_K_M, Q6_K, Q8_0, F16 with computed VRAM sizes
+- **Zero-install hardware detection** — CPU cores, RAM, GPU model, VRAM and memory bandwidth
+  identified from the browser
+- **83 AI models** — from TinyLlama 1.1B to Llama 4 Maverick 128E and Qwen3 Coder 480B
+- **7 quantization levels per model** — Q2_K, Q3_K_M, Q4_K_M, Q5_K_M, Q6_K, Q8_0, F16
+- **MoE-aware scoring** — mixture-of-experts models are scored on *active* rather than total
+  parameters, without which speed estimates are badly wrong
 - **S–F grading system** — instant letter grade based on your hardware vs. model requirements
-- **Tokens/second estimates** — approximate inference speed from memory bandwidth data
-- **Filters** — by use case (chat, code, reasoning, vision), provider, architecture (dense / MoE), features (tool use, thinking)
-- **Search & keyboard shortcuts** — `/` to search, `j`/`k` to navigate, `Enter` to open, `v` to switch view
-- **Three view modes** — compact grid, detailed grid, and list
+- **Tokens/second estimates** — approximate inference speed derived from memory bandwidth
+- **Bilingual** — Thai at `/`, English at `/en/`
+- **Playground** — real in-browser inference via `@huggingface/transformers` in a web worker
 - **Tier list** — shareable S–F tier list you can export as an image
-- **Model detail pages** — per-quant compatibility table, one-click Ollama / LM Studio / llama.cpp install commands
+- **Model detail pages** — per-quant compatibility table, one-click Ollama / LM Studio / llama.cpp
+  install commands
+- **Public JSON API** — CORS-enabled, see [API](#api)
 - **OG images** — dynamically generated social preview images for every model
-- **SEO** — Schema.org structured data, sitemap, semantic HTML
-- **View Transitions** — smooth page animations via Astro Client Router
 
 ## Model Catalog
 
-Models from **Meta, Google, Alibaba, DeepSeek, Mistral AI, Microsoft, NVIDIA, Liquid AI** and the community:
+Models from **Meta, Google, Alibaba, DeepSeek, Mistral AI, Microsoft, NVIDIA, Liquid AI** and the
+community:
 
 | Family | Models |
 |---|---|
@@ -72,9 +90,11 @@ Models from **Meta, Google, Alibaba, DeepSeek, Mistral AI, Microsoft, NVIDIA, Li
 | Phi | 3.5 Mini, 4 14B, 4 Mini Reasoning |
 | Others | Nemotron, GLM-4, OLMo 2, SmolLM3, LFM2, EXAONE, Kimi K2, GPT-OSS |
 
+Thai and SEA models (Typhoon, OpenThaiGPT, SeaLLM, WangchanX) are a planned addition.
+
 ## API
 
-CanIRun.ai exposes the compatibility engine as a CORS-enabled JSON API:
+AiNaiDee exposes the compatibility engine as a CORS-enabled JSON API:
 
 | Method | Endpoint | Description |
 |---|---|---|
@@ -86,7 +106,7 @@ CanIRun.ai exposes the compatibility engine as a CORS-enabled JSON API:
 Example:
 
 ```bash
-curl -X POST https://canirun.ai/api/compatibility \
+curl -X POST https://ainaidee.com/api/compatibility \
   -H 'content-type: application/json' \
   -d '{
     "hardware": {
@@ -98,85 +118,112 @@ curl -X POST https://canirun.ai/api/compatibility \
   }'
 ```
 
-GPU names are enriched from the internal hardware database. You can also pass
-`vramGb` and `memoryBandwidthGbps` explicitly. For Apple Silicon, provide the
-chip name and total unified memory through `ramGb`. Omitting `quantization`
-selects the highest-quality option that fits the supplied hardware.
+GPU names are enriched from the internal hardware database. You can also pass `vramGb` and
+`memoryBandwidthGbps` explicitly. For Apple Silicon, provide the chip name and total unified memory
+through `ramGb`. Omitting `quantization` selects the highest-quality option that fits.
+
+The API deliberately uses different status names from the internal engine
+(`comfortable` / `tight` / `cpu-offload` / `insufficient`) — that mapping is the public contract.
 
 ## Tech Stack
 
 | | Technology | Purpose |
 |---|---|---|
-| 🚀 | [Astro 5](https://astro.build) | Static site generation with islands architecture |
+| 🚀 | [Astro 6](https://astro.build) | Site generation with islands architecture + native i18n routing |
+| 🟢 | [@astrojs/node](https://docs.astro.build/en/guides/integrations-guide/node/) | Standalone Node server (self-hosted via Docker) |
 | 🎨 | [Tailwind CSS 4](https://tailwindcss.com) | Utility-first styling |
-| 🔤 | [Geist](https://vercel.com/font) | Sans, Mono and Pixel typefaces |
-| 🖼️ | [Satori](https://github.com/vercel/satori) + [resvg](https://github.com/nicolo-ribaudo/resvg-js) | OG image generation (JSX → SVG → PNG) |
-| 📸 | [@zumer/snapdom](https://github.com/nicolo-ribaudo/snapdom) | Tier list export to image |
-| 🗺️ | [@astrojs/sitemap](https://docs.astro.build/en/guides/integrations-guide/sitemap/) | Automatic sitemap generation |
+| 🔤 | Chakra Petch · IBM Plex Sans Thai · IBM Plex Mono | Display, Thai body text, and monospace |
+| 🖼️ | [Satori](https://github.com/vercel/satori) + [resvg](https://github.com/yisibl/resvg-js) | OG image generation (JSX → SVG → PNG) |
+| 🤗 | [@huggingface/transformers](https://github.com/huggingface/transformers.js) | In-browser inference for the playground |
+| 📸 | [@zumer/snapdom](https://github.com/zumerlab/snapdom) | Tier list export to image |
+| ✍️ | [Ghost](https://ghost.org) | Headless CMS for the blog |
 
 ## Getting Started
 
-**Prerequisites:** [Node.js](https://nodejs.org) 18+ and [pnpm](https://pnpm.io)
+**Prerequisites:** [Node.js](https://nodejs.org) 18+ and [pnpm](https://pnpm.io) (pinned via
+`packageManager` — do not use npm or yarn)
 
 ```bash
-# Clone the repo
-git clone https://github.com/midudev/canirun.ai.git
-cd canirun.ai
+git clone https://github.com/kovitking/AiNaiDee.git
+cd AiNaiDee
 
-# Install dependencies
 pnpm install
-
-# Start dev server
 pnpm dev
 ```
 
-Open [localhost:4321](http://localhost:4321) to see the site.
+Open [localhost:4321](http://localhost:4321). No environment variables are required for local
+development.
 
 ## Commands
 
 | Command | Action |
 |---|---|
 | `pnpm dev` | Start dev server at `localhost:4321` |
-| `pnpm build` | Build production site to `./dist/` |
-| `pnpm preview` | Preview production build locally |
-| `pnpm scrape` | Fetch model stats from HuggingFace |
+| `pnpm build` | Build to `dist/client` + `dist/server/entry.mjs` |
+| `node dist/server/entry.mjs` | Run the built site (`HOST` / `PORT` env, defaults `:4321`) |
+| `pnpm preview` | Preview the production build |
+| `pnpm test` | Run the vitest suite |
+| `pnpm packages:typecheck` | Typecheck both workspace packages |
+| `pnpm packages:build` | Compile the workspace packages to `dist/` |
 
 ## Project Structure
 
+The compatibility engine and model catalog live in **workspace packages**, not in `src/`. These
+files in `src/` are one-line re-exports and contain no logic — editing them changes nothing:
+
+| Shim in `src/` | Real implementation |
+|---|---|
+| `src/data/models.ts` | `packages/models/src/index.ts` |
+| `src/lib/hardware.ts` | `packages/compatibility/src/index.ts` |
+| `src/lib/device-slugs.ts` | `packages/compatibility/src/device-slugs.ts` |
+| `src/lib/hardware-ui.ts` | `packages/compatibility/src/ui.ts` |
+
 ```
+packages/
+├── compatibility/    # Hardware databases + detection/scoring pipeline
+├── models/           # Model catalog (sizes are derived, not hand-written)
+└── runai/            # Separate CLI: local model runner (not part of the web build)
 src/
-├── data/
-│   ├── models.ts          # 68+ AI model definitions with quant calculations
-│   └── hf-stats.json      # HuggingFace download/like counts
-├── lib/
-│   ├── hardware.ts         # Client-side hardware detection engine
-│   └── og.ts               # OG image generation utilities
+├── i18n/ui.ts        # Thai/English dictionary + useTranslations(lang)
 ├── pages/
-│   ├── index.astro         # Home — model grid with filters & search
-│   ├── tier.astro          # Tier list — S–F ranking with image export
-│   ├── model/[id].astro    # Model detail — quants, compatibility, install
-│   └── og/                 # Dynamic OG image endpoints
-├── components/
-│   └── NavHeader.astro     # Site navigation
-├── layouts/
-│   └── Layout.astro        # Base layout with SEO, fonts, transitions
-├── icons/                  # SVG icon components
-└── styles/
-    └── global.css          # Theme tokens, Geist fonts, dark mode
+│   ├── index.astro   # Home (Thai)
+│   ├── en/index.astro# Home (English)
+│   ├── model/[id]    # Model detail
+│   ├── playground    # In-browser inference
+│   └── api/          # Public JSON API
+├── components/       # NavHeader, Footer, ModelListContent
+└── layouts/          # Base layout: SEO, hreflang, view transitions
 ```
+
+> **Note:** `pnpm dev` and `vitest` resolve `packages/*/src` (edits are live), but `astro build`
+> resolves `packages/*/dist`. Both `dev` and `build` chain `pnpm packages:build` first — but if you
+> ever run `astro build` directly, run `pnpm packages:build` yourself or you will silently ship a
+> stale package.
+
+## Deployment
+
+Self-hosted on a plain Node server via Docker — **not Vercel**. `pnpm build` emits a standalone
+server; `docker compose build app && docker compose up -d app` runs it. `SITE_URL` is a **build
+arg**, baked into the sitemap and every absolute OG image URL, so changing the public origin means
+rebuilding rather than restarting.
 
 ## Contributing
 
-Contributions are welcome! Some ways to help:
+Contributions are welcome:
 
-- **Add a model** — add an entry to `src/data/models.ts` following the existing pattern
-- **Improve hardware detection** — extend the GPU/Apple/Mobile databases in `src/lib/hardware.ts`
-- **Report inaccurate results** — open an issue with your hardware info and the model in question
-- **Fix bugs or improve UI** — PRs are appreciated
+- **Add a model** — add one entry to `STATIC_MODELS` in `packages/models/src/index.ts` with
+  `paramsBillions` (and a `moe` block for mixture-of-experts). The quantization and RAM tables are
+  derived automatically.
+- **Improve hardware detection** — extend the `GPU_DB`, `APPLE_DB`, `MOBILE_GPU_DB` or `SBC_DB`
+  lookup tables in `packages/compatibility/src/index.ts` rather than touching `detectHardware()`.
+- **Help with Thai localization** — add strings to `src/i18n/ui.ts`. Technical terms (GPU, VRAM,
+  WebGPU, grade letters, quant codes, MoE) intentionally stay in English.
+- **Report inaccurate results** — open an issue with your hardware info and the model in question.
 
-## Author
+## Credits
 
-Created by [**midudev**](https://midu.dev) · [@midudev](https://twitter.com/midudev)
+Original project by [**midudev**](https://midu.dev) — [canirun.ai](https://canirun.ai).
+Thai fork maintained by [kovitking](https://github.com/kovitking).
 
 ## License
 
