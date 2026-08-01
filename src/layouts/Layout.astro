@@ -7,13 +7,17 @@ interface Props {
   description?: string;
   image?: string;
   type?: string;
+  lang?: string;
+  locale?: string;
 }
 
 const {
-  title = "AiNaiDee — Which AI can your machine run?",
-  description = "Detect your hardware and find out which AI models you can run locally. GPU, CPU, and RAM analysis in your browser.",
+  title = "AiNaiDee — เครื่องคุณรัน AI ตัวไหนได้บ้าง?",
+  description = "ตรวจฮาร์ดแวร์ของคุณและดูว่ารันโมเดล AI ตัวไหนได้บ้าง วิเคราะห์ GPU, CPU และ RAM ในเบราว์เซอร์",
   image = "/og/home.jpg",
   type = "website",
+  lang = "en",
+  locale = "en_US",
 } = Astro.props;
 
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
@@ -21,7 +25,7 @@ const ogImageURL = new URL(image, Astro.site);
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang={lang}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -44,7 +48,7 @@ const ogImageURL = new URL(image, Astro.site);
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:site_name" content="AiNaiDee" />
-    <meta property="og:locale" content="en_US" />
+    <meta property="og:locale" content={locale} />
 
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:url" content={canonicalURL.href} />

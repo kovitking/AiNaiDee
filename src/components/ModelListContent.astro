@@ -45,22 +45,36 @@ function timeAgo(dateStr: string | null): string {
   const date = new Date(dateStr + "-01")
   const diffMs = now.getTime() - date.getTime()
   const days = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-  if (days < 0) return "upcoming"
-  if (days === 0) return "today"
-  if (days === 1) return "1 day ago"
-  if (days < 30) return `${days}d ago`
+  if (days < 0) return "เร็วๆ นี้"
+  if (days === 0) return "วันนี้"
+  if (days === 1) return "1 วันที่แล้ว"
+  if (days < 30) return `${days} วันที่แล้ว`
   const months = Math.floor(days / 30)
-  if (months === 1) return "1 month ago"
-  if (months < 12) return `${months}mo ago`
+  if (months === 1) return "1 เดือนที่แล้ว"
+  if (months < 12) return `${months} เดือนที่แล้ว`
   const years = Math.floor(months / 12)
-  if (years === 1) return "1 year ago"
-  return `${years}y ago`
+  if (years === 1) return "1 ปีที่แล้ว"
+  return `${years} ปีที่แล้ว`
 }
 
 function ctxLabel(n: number): string {
   if (n >= 1_000_000) return `${Math.round(n / 1_000_000)}M`
   if (n >= 1024) return `${Math.round(n / 1024)}K`
   return String(n)
+}
+
+const USE_CASE_TH: Record<string, string> = {
+  chat: "คุยทั่วไป",
+  code: "เขียนโค้ด",
+  reasoning: "คิดวิเคราะห์",
+  vision: "ดูรูป",
+  multilingual: "หลายภาษา",
+  edge: "เครื่องเล็ก",
+  rag: "ค้นเอกสาร",
+}
+
+function useCaseLabel(uses: string[]): string {
+  return uses.map((u) => USE_CASE_TH[u] ?? u).join(", ")
 }
 ---
 
@@ -75,11 +89,11 @@ function ctxLabel(n: number): string {
   <!-- Verdict headline — how many models run well on this machine -->
   <section class="mt-8 mb-6">
     <p class="font-mono text-xs uppercase tracking-wide text-muted">
-      Based on your detected hardware
+      จากฮาร์ดแวร์ที่ตรวจพบ
     </p>
     <h2 class="mt-1 font-pixel text-2xl leading-tight text-primary sm:text-3xl">
-      <span id="nd-count" class="font-bold text-accent">—</span> of
-      <span id="nd-total">{models.length}</span> models run well
+      <span id="nd-count" class="font-bold text-accent">—</span> จาก
+      <span id="nd-total">{models.length}</span> โมเดลรันได้ดี
     </h2>
     <p id="nd-count-slow" class="mt-1 min-h-[1.2em] text-sm text-secondary"></p>
   </section>
@@ -93,10 +107,10 @@ function ctxLabel(n: number): string {
       <!-- GPU -->
       <span id="hw-gpu" class="inline-flex items-center gap-1.5 text-muted">
         <span
-          data-tooltip="GPU detected via browser APIs — this is an estimate, actual specs may differ"
+          data-tooltip="ตรวจจับ GPU ผ่าน API ของเบราว์เซอร์ — เป็นค่าประมาณ สเปกจริงอาจต่างไป"
           data-tooltip-pos="bottom"
           tabindex="0"
-          aria-label="GPU info"
+          aria-label="ข้อมูล GPU"
           class="inline-flex shrink-0 flex-col items-center gap-1"
         >
           <IconGpu class="h-4 w-4 text-muted" />
@@ -106,17 +120,17 @@ function ctxLabel(n: number): string {
           >
         </span>
         <select id="hw-device-select" class="hw-editable-select" disabled>
-          <option value="">detecting...</option>
+          <option value="">กำลังตรวจ...</option>
         </select>
       </span>
       <span class="text-edge/40">|</span>
       <!-- VRAM -->
       <span id="hw-ram" class="inline-flex items-center gap-1.5 text-muted">
         <span
-          data-tooltip="VRAM — Video memory available for loading models. On Apple Silicon/iGPUs, it's shared with system RAM"
+          data-tooltip="VRAM — หน่วยความจำการ์ดจอสำหรับโหลดโมเดล บน Apple Silicon/iGPU จะใช้ร่วมกับ RAM ระบบ"
           data-tooltip-pos="bottom"
           tabindex="0"
-          aria-label="VRAM info"
+          aria-label="ข้อมูล VRAM"
           class="inline-flex shrink-0 flex-col items-center gap-1"
         >
           <IconRam class="h-4 w-4 text-muted" />
@@ -134,10 +148,10 @@ function ctxLabel(n: number): string {
       <span id="hw-bw" class="hidden inline-flex items-center gap-1.5">
         <span class="text-edge/40">|</span>
         <span
-          data-tooltip="GB/s — Memory bandwidth. How fast data moves to the processor. Higher = faster inference"
+          data-tooltip="GB/s — แบนด์วิดท์หน่วยความจำ ยิ่งสูงยิ่งประมวลผลเร็ว"
           data-tooltip-pos="bottom"
           tabindex="0"
-          aria-label="Bandwidth info"
+          aria-label="ข้อมูลแบนด์วิดท์"
           class="inline-flex shrink-0 flex-col items-center gap-1"
         >
           <IconBandwidth class="h-4 w-4 text-muted" />
@@ -152,10 +166,10 @@ function ctxLabel(n: number): string {
       <span id="hw-sysram" class="hidden inline-flex items-center gap-1.5">
         <span class="text-edge/40">|</span>
         <span
-          data-tooltip="System RAM — used for CPU offloading when model doesn't fit in VRAM. More RAM = bigger models via offloading (slower)"
+          data-tooltip="RAM ระบบ — ใช้ตอนโมเดลใหญ่เกิน VRAM (CPU offload) ยิ่งมากยิ่งรันโมเดลใหญ่ได้ แต่ช้าลง"
           data-tooltip-pos="bottom"
           tabindex="0"
-          aria-label="System RAM info"
+          aria-label="ข้อมูล RAM ระบบ"
           class="inline-flex shrink-0 flex-col items-center gap-1"
         >
           <IconRam class="h-4 w-4 text-muted" />
@@ -170,10 +184,10 @@ function ctxLabel(n: number): string {
       <span id="hw-gpu-cores" class="hidden inline-flex items-center gap-1.5">
         <span class="text-edge/40">|</span>
         <span
-          data-tooltip="GPU cores — more cores allow faster parallel computation for model inference"
+          data-tooltip="จำนวนคอร์ GPU — ยิ่งเยอะยิ่งประมวลผลแบบขนานได้เร็วขึ้น"
           data-tooltip-pos="bottom"
           tabindex="0"
-          aria-label="GPU cores info"
+          aria-label="ข้อมูลคอร์ GPU"
           class="inline-flex shrink-0 flex-col items-center gap-1"
         >
           <IconCpu class="h-4 w-4 text-muted" />
@@ -189,7 +203,7 @@ function ctxLabel(n: number): string {
       id="hw-notice"
       class="mt-1.5 flex items-center justify-center gap-2 text-center text-xs text-muted invisible"
     >
-      <span>Estimates based on browser APIs. Actual specs may vary.</span>
+      <span>ค่าประมาณจาก API ของเบราว์เซอร์ สเปกจริงอาจแตกต่างไป</span>
       <span
         id="hw-webgpu-badge"
         class="inline-flex items-center gap-1 rounded-full border px-1.5 py-px text-[10px] font-medium"
@@ -206,73 +220,73 @@ function ctxLabel(n: number): string {
       <span
         class="flex items-center gap-1.5"
         style="color: var(--color-can-run)"
-        data-tooltip="Grade S — Plenty of VRAM, fast inference"
+        data-tooltip="เกรด S — VRAM เหลือเฟือ ประมวลผลเร็ว"
         tabindex="0"
         role="group"
-        aria-label="Grade S: Runs great"
+        aria-label="เกรด S: รันลื่น"
       >
         <span id="count-s" class="font-bold text-sm sm:text-base">0</span>
-        <span class="font-medium uppercase tracking-wide">Runs great</span>
+        <span class="font-medium uppercase tracking-wide">รันลื่น</span>
       </span>
       <span class="h-3 w-px bg-edge/40"></span>
       <span
         class="flex items-center gap-1.5"
         style="color: var(--color-grade-a)"
-        data-tooltip="Grade A — Runs smoothly with good headroom"
+        data-tooltip="เกรด A — รันลื่น มีที่ว่างเหลือ"
         tabindex="0"
         role="group"
-        aria-label="Grade A: Runs well"
+        aria-label="เกรด A: รันดี"
       >
         <span id="count-a" class="font-bold text-sm sm:text-base">0</span>
-        <span class="font-medium uppercase tracking-wide">Runs well</span>
+        <span class="font-medium uppercase tracking-wide">รันดี</span>
       </span>
       <span class="h-3 w-px bg-edge/40"></span>
       <span
         class="flex items-center gap-1.5"
         style="color: var(--color-grade-b)"
-        data-tooltip="Grade B — Decent performance, uses most memory"
+        data-tooltip="เกรด B — พอใช้ ใช้หน่วยความจำเกือบเต็ม"
         tabindex="0"
         role="group"
-        aria-label="Grade B: Decent"
+        aria-label="เกรด B: พอใช้"
       >
         <span id="count-b" class="font-bold text-sm sm:text-base">0</span>
-        <span class="font-medium uppercase tracking-wide">Decent</span>
+        <span class="font-medium uppercase tracking-wide">พอใช้</span>
       </span>
       <span class="h-3 w-px bg-edge/40"></span>
       <span
         class="flex items-center gap-1.5"
         style="color: var(--color-maybe)"
-        data-tooltip="Grade C — Tight fit, slower inference speeds"
+        data-tooltip="เกรด C — พอดีตัว ประมวลผลช้าลง"
         tabindex="0"
         role="group"
-        aria-label="Grade C: Tight fit"
+        aria-label="เกรด C: ตึงๆ"
       >
         <span id="count-c" class="font-bold text-sm sm:text-base">0</span>
-        <span class="font-medium uppercase tracking-wide">Tight fit</span>
+        <span class="font-medium uppercase tracking-wide">ตึงๆ</span>
       </span>
       <span class="h-3 w-px bg-edge/40"></span>
       <span
         class="flex items-center gap-1.5"
         style="color: var(--color-grade-d)"
-        data-tooltip="Grade D — Barely fits, very slow inference"
+        data-tooltip="เกรด D — พอรันได้ ช้ามาก"
         tabindex="0"
         role="group"
-        aria-label="Grade D: Barely runs"
+        aria-label="เกรด D: แทบไม่ไหว"
       >
         <span id="count-d" class="font-bold text-sm sm:text-base">0</span>
-        <span class="font-medium uppercase tracking-wide">Barely runs</span>
+        <span class="font-medium uppercase tracking-wide">แทบไม่ไหว</span>
       </span>
       <span class="h-3 w-px bg-edge/40"></span>
       <span
         class="flex items-center gap-1.5"
         style="color: var(--color-cannot-run)"
-        data-tooltip="Grade F — Not enough memory to run this model"
+        data-tooltip="เกรด F — หน่วยความจำไม่พอรันโมเดลนี้"
         tabindex="0"
         role="group"
-        aria-label="Grade F: Too heavy"
+        aria-label="เกรด F: หนักเกินไป"
       >
         <span id="count-f" class="font-bold text-sm sm:text-base">0</span>
-        <span class="font-medium uppercase tracking-wide">Too heavy</span>
+        <span class="font-medium uppercase tracking-wide">หนักเกินไป</span>
       </span>
     </div>
   </div>
@@ -287,7 +301,7 @@ function ctxLabel(n: number): string {
       <input
         id="search-input"
         type="text"
-        placeholder="Search models..."
+        placeholder="ค้นหาโมเดล..."
         class="filter-select w-full !pl-8 pr-8"
         autocomplete="off"
       />
@@ -301,46 +315,46 @@ function ctxLabel(n: number): string {
 
     <!-- Status filter -->
     <select id="filter-status" class="filter-select">
-      <option value="all">All grades</option>
-      <option value="featured">Popular</option>
-      <option value="can-run">Can run (S/A/B)</option>
-      <option value="tight">Tight fit (C/D)</option>
-      <option value="cannot-run">Too heavy (F)</option>
+      <option value="all">ทุกเกรด</option>
+      <option value="featured">ยอดนิยม</option>
+      <option value="can-run">รันได้ (S/A/B)</option>
+      <option value="tight">ตึงๆ (C/D)</option>
+      <option value="cannot-run">หนักเกินไป (F)</option>
     </select>
 
     <!-- Use case filter -->
     <select id="filter-use" class="filter-select">
-      <option value="all">All tasks</option>
-      <option value="chat">Chat</option>
-      <option value="code">Code</option>
-      <option value="reasoning">Reasoning</option>
-      <option value="vision">Vision</option>
+      <option value="all">ทุกงาน</option>
+      <option value="chat">คุยทั่วไป</option>
+      <option value="code">เขียนโค้ด</option>
+      <option value="reasoning">คิดวิเคราะห์</option>
+      <option value="vision">ดูรูป</option>
     </select>
 
     <!-- Provider filter -->
     <select id="filter-provider" class="filter-select">
-      <option value="all">All providers</option>
+      <option value="all">ทุกผู้พัฒนา</option>
       {providers.map((p) => <option value={p}>{p}</option>)}
     </select>
 
     <!-- License filter -->
     <select id="filter-license" class="filter-select">
-      <option value="all">All licenses</option>
-      <option value="commercial">Commercial use</option>
-      <option value="non-commercial">Non-commercial</option>
+      <option value="all">ทุกสัญญาอนุญาต</option>
+      <option value="commercial">ใช้เชิงพาณิชย์ได้</option>
+      <option value="non-commercial">ห้ามใช้เชิงพาณิชย์</option>
       {LICENSE_LIST.map((l) => <option value={l}>{l}</option>)}
     </select>
 
     <!-- Sort -->
     <select id="sort-select" class="filter-select">
-      <option value="score">Sort: Score</option>
-      <option value="params-asc">Sort: Params ↑</option>
-      <option value="params-desc">Sort: Params ↓</option>
-      <option value="release">Sort: Newest</option>
-      <option value="context">Sort: Context</option>
-      <option value="toks">Sort: Speed</option>
-      <option value="vram">Sort: VRAM ↑</option>
-      <option value="downloads">Sort: Popularity</option>
+      <option value="score">เรียง: คะแนน</option>
+      <option value="params-asc">เรียง: Params ↑</option>
+      <option value="params-desc">เรียง: Params ↓</option>
+      <option value="release">เรียง: ใหม่สุด</option>
+      <option value="context">เรียง: Context</option>
+      <option value="toks">เรียง: ความเร็ว</option>
+      <option value="vram">เรียง: VRAM ↑</option>
+      <option value="downloads">เรียง: ความนิยม</option>
     </select>
   </div>
 
@@ -363,8 +377,8 @@ function ctxLabel(n: number): string {
     <div class="nd-row nd-row-you">
       <div class="nd-row-grade"></div>
       <div class="nd-row-name">
-        <span class="nd-row-title">Your machine</span>
-        <span class="nd-row-meta" id="nd-cap-meta">Detecting hardware…</span>
+        <span class="nd-row-title">เครื่องของคุณ</span>
+        <span class="nd-row-meta" id="nd-cap-meta">กำลังตรวจฮาร์ดแวร์…</span>
       </div>
       <div class="nd-track nd-track-you">
         <div class="nd-bar nd-bar-you" id="nd-cap-bar"></div>
@@ -376,9 +390,8 @@ function ctxLabel(n: number): string {
     </div>
 
     <p class="nd-help">
-      Each bar is the memory a model needs at Q4_K_M quantization, measured on the same ruler.
-      Bars that stop before the saffron line fit comfortably — bars that cross it need to borrow
-      system RAM, which is much slower.
+      แต่ละแถบคือหน่วยความจำที่โมเดลต้องใช้ที่ระดับบีบอัด Q4_K_M วัดบนไม้บรรทัดเดียวกันทั้งหน้า
+      แถบที่หยุดก่อนเส้นสีส้มคือรันได้สบาย ส่วนที่ล้ำเส้นออกไปต้องยืม RAM ระบบมาช่วย ซึ่งช้าลงมาก
     </p>
 
     <!-- Popular models -->
@@ -422,21 +435,21 @@ function ctxLabel(n: number): string {
                       </i>
                     )}
                     {model.tools && (
-                      <i class="nd-tag" title="Tool use">
+                      <i class="nd-tag" title="เรียกใช้เครื่องมือได้">
                         <IconTool class="h-2.5 w-2.5" />
                       </i>
                     )}
                     {model.thinking && (
-                      <i class="nd-tag" title="Reasoning">
+                      <i class="nd-tag" title="คิดวิเคราะห์">
                         <IconThinking class="h-2.5 w-2.5" />
                       </i>
                     )}
                     {model.useCase.includes("vision") && (
-                      <i class="nd-tag" title="Vision">
+                      <i class="nd-tag" title="ดูรูป">
                         <IconVision class="h-2.5 w-2.5" />
                       </i>
                     )}
-                    <i class="nd-tag nd-tag-star" title="Popular">
+                    <i class="nd-tag nd-tag-star" title="ยอดนิยม"
                       <IconStar class="h-2.5 w-2.5" />
                     </i>
                   </span>
@@ -446,7 +459,7 @@ function ctxLabel(n: number): string {
                   {model.architecture === "moe"
                     ? ` (active ${getActiveParamsBillions(model).toFixed(0)}B)`
                     : ""}{" "}
-                  · {model.useCase.join(", ")} · ctx {ctxLabel(model.contextLength)} ·{" "}
+                  · {useCaseLabel(model.useCase)} · ctx {ctxLabel(model.contextLength)} ·{" "}
                   {model.architecture === "moe" ? "MoE" : "Dense"}
                   {model.license && (
                     <>
@@ -495,7 +508,7 @@ function ctxLabel(n: number): string {
     <!-- Section divider -->
     <div id="rest-divider" class="my-8 flex items-center gap-4">
       <div class="h-px flex-1 bg-edge/30"></div>
-      <span class="font-mono text-[13px] text-muted/60">All models</span>
+      <span class="font-mono text-[13px] text-muted/60">โมเดลทั้งหมด</span>
       <div class="h-px flex-1 bg-edge/30"></div>
     </div>
 
@@ -539,17 +552,17 @@ function ctxLabel(n: number): string {
                       </i>
                     )}
                     {model.tools && (
-                      <i class="nd-tag" title="Tool use">
+                      <i class="nd-tag" title="เรียกใช้เครื่องมือได้">
                         <IconTool class="h-2.5 w-2.5" />
                       </i>
                     )}
                     {model.thinking && (
-                      <i class="nd-tag" title="Reasoning">
+                      <i class="nd-tag" title="คิดวิเคราะห์">
                         <IconThinking class="h-2.5 w-2.5" />
                       </i>
                     )}
                     {model.useCase.includes("vision") && (
-                      <i class="nd-tag" title="Vision">
+                      <i class="nd-tag" title="ดูรูป">
                         <IconVision class="h-2.5 w-2.5" />
                       </i>
                     )}
@@ -560,7 +573,7 @@ function ctxLabel(n: number): string {
                   {model.architecture === "moe"
                     ? ` (active ${getActiveParamsBillions(model).toFixed(0)}B)`
                     : ""}{" "}
-                  · {model.useCase.join(", ")} · ctx {ctxLabel(model.contextLength)} ·{" "}
+                  · {useCaseLabel(model.useCase)} · ctx {ctxLabel(model.contextLength)} ·{" "}
                   {model.architecture === "moe" ? "MoE" : "Dense"}
                   {model.license && (
                     <>
@@ -608,22 +621,22 @@ function ctxLabel(n: number): string {
 
     <!-- No results empty state -->
     <div id="no-results" class="hidden py-20 text-center">
-      <p class="font-pixel text-lg text-muted/60">No models found</p>
+      <p class="font-pixel text-lg text-muted/60">ไม่พบโมเดล</p>
       <p class="mt-2 text-base text-muted/40">
-        Try adjusting your search or filters
+        ลองปรับคำค้นหาหรือตัวกรองดูครับ
       </p>
       <button
         id="reset-filters"
         class="mt-5 inline-flex items-center gap-1.5 rounded-lg border border-edge/60 bg-surface-raised px-4 py-2 font-mono text-sm text-secondary transition-colors hover:border-accent/30 hover:bg-surface-hover hover:text-primary cursor-pointer"
       >
-        Reset filters
+        ล้างตัวกรอง
       </button>
     </div>
   </section>
 
   <Footer class="mt-20">
     <p class="text-[13px] text-muted/70">
-      Data sourced from <a
+      ข้อมูลอ้างอิงจาก <a
         href="https://github.com/ggerganov/llama.cpp"
         target="_blank"
         rel="noopener"
@@ -635,13 +648,13 @@ function ctxLabel(n: number): string {
         rel="noopener"
         class="text-muted underline decoration-edge underline-offset-2 hover:text-primary"
         >Ollama</a
-      > and <a
+      > และ <a
         href="https://lmstudio.ai"
         target="_blank"
         rel="noopener"
         class="text-muted underline decoration-edge underline-offset-2 hover:text-primary"
         >LM Studio</a
-      >.
+      >
     </p>
   </Footer>
 </main>
@@ -672,13 +685,13 @@ function ctxLabel(n: number): string {
   import { deviceKeyToSlug, slugToDeviceKey } from "@/lib/device-slugs"
 
   const GRADES: Record<Grade, GradeInfo> = {
-    S: { letter: "S", label: "Runs great", color: "var(--color-can-run)" },
-    A: { letter: "A", label: "Runs well", color: "var(--color-grade-a)" },
-    B: { letter: "B", label: "Decent", color: "var(--color-grade-b)" },
-    C: { letter: "C", label: "Tight fit", color: "var(--color-maybe)" },
-    D: { letter: "D", label: "Barely runs", color: "var(--color-grade-d)" },
-    F: { letter: "F", label: "Too heavy", color: "var(--color-cannot-run)" },
-    "?": { letter: "?", label: "Unknown", color: "var(--color-muted)" },
+    S: { letter: "S", label: "รันลื่น", color: "var(--color-can-run)" },
+    A: { letter: "A", label: "รันดี", color: "var(--color-grade-a)" },
+    B: { letter: "B", label: "พอใช้", color: "var(--color-grade-b)" },
+    C: { letter: "C", label: "ตึงๆ", color: "var(--color-maybe)" },
+    D: { letter: "D", label: "แทบไม่ไหว", color: "var(--color-grade-d)" },
+    F: { letter: "F", label: "หนักเกินไป", color: "var(--color-cannot-run)" },
+    "?": { letter: "?", label: "ไม่ทราบ", color: "var(--color-muted)" },
   }
 
   const $ = <T extends Element = HTMLElement>(s: string) =>
@@ -757,12 +770,12 @@ function ctxLabel(n: number): string {
 
   function capacityMetaText(hw: HardwareInfo, usable: number): string {
     if (hw.isAppleSilicon) {
-      return `Unified memory ${hw.ramGB ?? hw.totalUsableRAM ?? "—"} GB · ~${usable} GB usable for models`
+      return `หน่วยความจำรวม ${hw.ramGB ?? hw.totalUsableRAM ?? "—"} GB · ใช้ได้จริงราว ${usable} GB`
     }
     if (!hw.estimatedVRAM) {
-      return `No discrete GPU detected · relying on ${hw.systemRAM ?? hw.ramGB ?? "—"} GB system RAM`
+      return `ไม่พบการ์ดจอแยก · อาศัย RAM ระบบ ${hw.systemRAM ?? hw.ramGB ?? "—"} GB`
     }
-    return `VRAM ${usable} GB · System RAM ${hw.systemRAM ?? hw.ramGB ?? "—"} GB`
+    return `VRAM ${usable} GB · RAM ระบบ ${hw.systemRAM ?? hw.ramGB ?? "—"} GB`
   }
 
   function updateRulerTicks(rulerMax: number) {
@@ -790,7 +803,7 @@ function ctxLabel(n: number): string {
 
     const customOpt = document.createElement("option")
     customOpt.value = "custom"
-    customOpt.textContent = "Custom"
+    customOpt.textContent = "กำหนดเอง"
     select.appendChild(customOpt)
 
     appendDeviceOptgroups(select, storedDevice)
@@ -851,7 +864,7 @@ function ctxLabel(n: number): string {
         if (sysramTooltip) {
           sysramTooltip.setAttribute(
             "data-tooltip",
-            "Unified memory — Apple Silicon shares RAM between CPU and GPU. No separate system RAM available for offloading",
+            "หน่วยความจำรวม — Apple Silicon ใช้ RAM ร่วมกันระหว่าง CPU และ GPU ไม่มี RAM ระบบแยกสำหรับ offload",
           )
         }
       } else {
@@ -928,7 +941,7 @@ function ctxLabel(n: number): string {
         "inline-flex items-center gap-1 rounded-full border border-accent/30 bg-accent/10 px-1.5 py-px text-[10px] font-medium text-accent"
       webgpuBadge.setAttribute(
         "data-tooltip",
-        "Your browser supports WebGPU — enables more accurate GPU detection and in-browser inference",
+        "เบราว์เซอร์ของคุณรองรับ WebGPU — ตรวจจับ GPU ได้แม่นยำขึ้นและรันโมเดลในเบราว์เซอร์ได้",
       )
       webgpuBadge.innerHTML = `<svg class="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span>WebGPU</span>`
     } else {
@@ -936,7 +949,7 @@ function ctxLabel(n: number): string {
         "inline-flex items-center gap-1 rounded-full border border-cannot-run/30 bg-cannot-run/10 px-1.5 py-px text-[10px] font-medium text-cannot-run"
       webgpuBadge.setAttribute(
         "data-tooltip",
-        "Your browser does not support WebGPU — hardware detection may be less accurate. Try Chrome or Edge for better results",
+        "เบราว์เซอร์ของคุณไม่รองรับ WebGPU — การตรวจจับฮาร์ดแวร์อาจไม่แม่นยำ ลองใช้ Chrome หรือ Edge เพื่อผลลัพธ์ที่ดีกว่า",
       )
       webgpuBadge.innerHTML = `<svg class="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg><span>WebGPU</span>`
     }
@@ -1616,11 +1629,11 @@ function ctxLabel(n: number): string {
     let activeTrigger: HTMLElement | null = null
 
     function tierFor(t: number): { label: string; color: string } {
-      if (t >= 60) return { label: "Instant", color: "var(--color-can-run)" }
-      if (t >= 30) return { label: "Smooth", color: "var(--color-can-run)" }
-      if (t >= 15) return { label: "Comfortable", color: "var(--color-maybe)" }
-      if (t >= 5) return { label: "Slow", color: "var(--color-maybe)" }
-      return { label: "Painful", color: "var(--color-cannot-run)" }
+      if (t >= 60) return { label: "เร็วทันใจ", color: "var(--color-can-run)" }
+      if (t >= 30) return { label: "ลื่น", color: "var(--color-can-run)" }
+      if (t >= 15) return { label: "สบายๆ", color: "var(--color-maybe)" }
+      if (t >= 5) return { label: "ช้า", color: "var(--color-maybe)" }
+      return { label: "ทรมาน", color: "var(--color-cannot-run)" }
     }
 
     function ensurePopup() {
