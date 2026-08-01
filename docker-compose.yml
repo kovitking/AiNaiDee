@@ -8,6 +8,12 @@ services:
         # host:port below. When DNS and the reverse proxy land, set SITE_URL to
         # the real origin in .env and REBUILD — restarting is not enough.
         SITE_URL: ${SITE_URL:-http://172.16.57.192:8587}
+        # Fetched at build time only (src/lib/ghost.ts) — a rebuild, not a
+        # restart, is required whenever these change or new posts are
+        # published. Empty defaults keep the blog build in its "coming soon"
+        # state if unset.
+        GHOST_URL: ${GHOST_URL:-}
+        GHOST_CONTENT_API_KEY: ${GHOST_CONTENT_API_KEY:-}
     image: ainaidee:latest
     restart: unless-stopped
     environment:
