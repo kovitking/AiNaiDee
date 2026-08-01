@@ -44,8 +44,11 @@ function makeHW(overrides: Partial<HardwareInfo> = {}): HardwareInfo {
     cpuBenchmark: null,
     isMobile: false,
     deviceName: null,
+    // Spreading a Partial re-introduces `undefined` into every field's type,
+    // which HardwareInfo does not allow. The values above cover the interface,
+    // so assert the merged result rather than loosening HardwareInfo itself.
     ...overrides,
-  };
+  } as HardwareInfo;
 }
 
 // ── GPU_DB integrity ─────────────────────────────────────────

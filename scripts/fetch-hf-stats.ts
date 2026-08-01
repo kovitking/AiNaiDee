@@ -54,7 +54,7 @@ async function main() {
     await sleep(RATE_LIMIT_MS);
   }
 
-  const outPath = join(import.meta.dir, "../src/data/hf-stats.json");
+  const outPath = join(import.meta.dirname, "../src/data/hf-stats.json");
   writeFileSync(outPath, JSON.stringify(stats, null, 2));
   console.log(`\nWrote ${Object.keys(stats).length} entries to ${outPath}`);
 }

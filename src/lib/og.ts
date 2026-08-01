@@ -1,8 +1,8 @@
-import satori from 'satori';
+import satori, { type SatoriOptions } from 'satori';
 import { Resvg } from '@resvg/resvg-js';
 import sharp from 'sharp';
 
-let fontsCache: { name: string; data: ArrayBuffer; weight: number; style: string }[] | null = null;
+let fontsCache: SatoriOptions["fonts"] | null = null;
 
 async function loadGoogleFont(weight: number): Promise<ArrayBuffer> {
   const css = await fetch(
@@ -23,9 +23,11 @@ async function loadGoogleFont(weight: number): Promise<ArrayBuffer> {
 async function getFonts() {
   if (fontsCache) return fontsCache;
   const [regular, bold] = await Promise.all([loadGoogleFont(400), loadGoogleFont(700)]);
+  // `as const` keeps weight/style as satori's literal unions rather than
+  // widening to number/string, which does not satisfy FontOptions.
   fontsCache = [
-    { name: 'Inter', data: regular, weight: 400, style: 'normal' },
-    { name: 'Inter', data: bold, weight: 700, style: 'normal' },
+    { name: 'Inter', data: regular, weight: 400 as const, style: 'normal' as const },
+    { name: 'Inter', data: bold, weight: 700 as const, style: 'normal' as const },
   ];
   return fontsCache;
 }

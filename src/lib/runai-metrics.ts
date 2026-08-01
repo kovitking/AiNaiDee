@@ -107,8 +107,9 @@ function parseRecommendation(
 
   const hardware = {
     platform: typeof payload.hardware.platform === "string" ? payload.hardware.platform.slice(0, 20) : null,
-    deviceClass:
-      payload.hardware.deviceClass === "apple_silicon" ? "apple_silicon" : "discrete_or_other",
+    deviceClass: (payload.hardware.deviceClass === "apple_silicon"
+      ? "apple_silicon"
+      : "discrete_or_other") as "apple_silicon" | "discrete_or_other",
     ramBucketGB: toFiniteNumber(payload.hardware.ramBucketGB),
     bandwidthBucketGBs: toFiniteNumber(payload.hardware.bandwidthBucketGBs),
   };

@@ -533,7 +533,7 @@ async function main() {
   }
 
   // 6. Check for models missing from models.ts
-  const modelsPath = join(import.meta.dir, "../src/data/models.ts");
+  const modelsPath = join(import.meta.dirname, "../src/data/models.ts");
   if (existsSync(modelsPath)) {
     const content = readFileSync(modelsPath, "utf-8");
 

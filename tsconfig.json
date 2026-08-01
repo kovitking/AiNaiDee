@@ -8,5 +8,15 @@
     "types": ["@webgpu/types"]
   },
   "include": [".astro/types.d.ts", "**/*"],
-  "exclude": ["dist"]
+  "exclude": [
+    "dist",
+    // Separate CLI with its own tsconfig, targeting the Bun runtime (Bun.spawn,
+    // bun:sqlite). It is not part of the web build, and checking it from here
+    // just reports missing Bun globals. Use `pnpm --filter runai` for it.
+    "packages/runai",
+    // Stale standalone demo, superseded by the real home page (see CLAUDE.md).
+    // Excluded so it does not drown out real errors in `astro check`; delete
+    // this entry along with the file once it is no longer needed as reference.
+    "src/pages/design.astro"
+  ]
 }
