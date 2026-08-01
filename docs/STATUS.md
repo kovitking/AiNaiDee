@@ -1,6 +1,58 @@
 # AiNaiDee — project status
 
-**Last updated: 2026-08-01.** Start here when picking the project back up.
+**Last updated: 2026-08-01 (later session).** Start here when picking the project back up.
+
+---
+
+## สรุปสั้นๆ (อ่านก่อน) — 2026-08-01 เซสชันช่วงบ่าย/เย็น
+
+**ดีไซน์ใหม่ขึ้นเว็บจริงแล้วครับ** หน้าแรกทั้งเว็บเปลี่ยนจากธีมเขียว/ดำเดิม (upstream CanIRun.ai)
+เป็นดีไซน์ indigo/saffron ตาม `/design` ที่อนุมัติไว้แล้ว — เลย์เอาต์เปลี่ยนจาก card grid เป็น
+row+ruler เส้น saffron บอกขีดจำกัดเครื่อง ผ่าน PR #1 บน GitHub, merge แล้ว, deploy ขึ้น
+`ainaidee.com` จริงแล้ว ยืนยันด้วยการเปิดเบราว์เซอร์ทดสอบเอง: ค้นหา, ตัวกรองครบ 5 ตัว, แก้
+hardware override ผ่าน dropdown, quant switch ต่อแถว, `/device/:slug` routing ทำงานถูกต้อง
+
+ทำเสร็จรอบนี้:
+
+1. **Apply `/design` ทั้งเว็บ** — งานใหญ่สุดของวัน ส่งผ่าน Ultraplan (cloud Claude Code session)
+   ทำตาม plan ที่เขียนไว้ก่อน แล้ว merge เข้า `main` เจอ edge case ระหว่างทาง: cloud session ไม่มี
+   สิทธิ์ push ขึ้น GitHub เอง (token ติด scope ไม่ครบ) แก้ด้วยการให้มัน `git bundle` โค้ดที่ทำเสร็จ
+   ออกมา แล้วเครื่องนี้ดึงเข้ามา verify ซ้ำเอง (test/typecheck/build/smoke-test) ก่อน push+เปิด PR
+   จริง งานครอบคลุม: เปลี่ยน theme tokens ทั้งเว็บ (`src/styles/global.css`, ดรอป light mode),
+   เขียน `ModelListContent.astro` ใหม่เป็น row+ruler พร้อมคง feature เดิมครบ (hardware override
+   editor, `/device/:slug` routing, quant switch, keyboard nav, speed-preview popup, URL-synced
+   filters/sort), ไล่แก้สี hardcode ที่เหลือใน `tier.astro`/`why.astro`/`docs.astro`
+2. **แก้ branding ค้าง "CanIRun.ai"** ที่ title ของ `/model/[id]` และ `/device/[id]` (หลุดมาตั้งแต่
+   ก่อน fork นี้ ไม่เกี่ยวกับ design rollout — เจอระหว่างเปิดเบราว์เซอร์ตรวจ PR)
+3. **แก้ Ghost admin login พังถาวร** — สาเหตุจริงคือ browser ทิ้ง session cookie เพราะตั้ง `Secure`
+   ตาม site url ที่เป็น https แต่เปิด admin ผ่าน `http://localhost` (SSH tunnel) คนละ origin กัน
+   ไม่ใช่เรื่อง credential ผิด แก้โดยเปลี่ยนมา route `/ghost*` ผ่าน `blog.ainaidee.com` ด้วย Caddy
+   แทน (บังคับ header `X-Forwarded-Proto: https` เพราะ Imperva forward มาเป็น http ธรรมดา) และปิด
+   `staffDeviceVerification` เพราะไม่มี SMTP ให้ส่งโค้ด 2FA ทางเมล ต่อ Ghost Content API key ให้
+   `/blog` ดึงโพสต์จริงจาก Ghost แล้ว (เลิกโชว์ "coming soon") — ตอนนี้มีแค่โพสต์ตัวอย่างของ Ghost
+   เอง ("Coming soon") ยังไม่มีโพสต์จริงที่คุณเขียน **จำไว้**: โพสต์ถูก fetch ตอน build time ไม่ใช่
+   runtime เขียน/แก้โพสต์ใหม่ทีไรต้อง rebuild image ใหม่เสมอ ไม่ใช่แค่ restart
+4. **เริ่มแปลเว็บเป็นไทย** — คงศัพท์เทคนิคเป็นอังกฤษตามที่สั่ง (GPU/VRAM/RAM/WebGPU/เกรด S-F/
+   Q4_K_M/MoE) แปลครบแล้ว: หน้าแรกทั้งหมด (hero, hardware panel, ตัวกรอง, สรุปเกรด, meta ของแต่ละ
+   โมเดล, วันที่แบบสัมพัทธ์), NavHeader, Footer, หน้า Playground (คำอธิบายการใช้งาน 3 ขั้นตอน) —
+   **ยังไม่แปล**: `/why`, `/compare`, `/tier`, `/docs`, `/license/*`, `/blog/*`, หน้า
+   `/model/[id]` และ `/device/[id]`, และ UI ลึกของหน้า Playground เอง (ปุ่ม New chat, Settings ฯลฯ)
+   — ยังเป็นภาษาอังกฤษทั้งหมด รอทำต่อ
+5. **เอาไอคอน GitHub ออกจาก nav กับ footer** — ดูหัวข้อถัดไป **ยังไม่ได้แก้ที่ต้นตอ**
+6. **คุณแก้ nginx เองสำเร็จ** — apex domain (`ainaidee.com` ไม่มี `www`) เคย fallback ไปเจอไซต์
+   Netpoleon เพราะ `server_name` เดิมไม่ครอบ apex คุณเพิ่ม `ainaidee.com` เข้า `server_name` เอง
+   แล้วได้ผลจริง ยืนยันแล้วว่า `ainaidee.com` กับ `www.ainaidee.com` เนื้อหาตรงกันไบต์ต่อไบต์
+
+**พบปัญหาความปลอดภัยที่ยังไม่ได้แก้จริง**: repo `kovitking/AiNaiDee` เป็น **public** และมี IP วง LAN
+ภายใน (`203.0.113.10`) กับ SSH username (`deploy`) ฝังอยู่ใน 7 ไฟล์ที่ commit ไว้แล้ว:
+`docker-compose.yml`, `CLAUDE.md`, `docs/STATUS.md` (ไฟล์นี้เองด้วย), `docs/deploy.md`,
+`docs/deploy-architecture.md`, `docs/blog-plan.md`, `docs/blog-architecture.md` — ใครก็เห็นได้ ไม่
+จำกัดแค่คนในองค์กร แม้ IP นี้เป็น private/เข้าจากอินเทอร์เน็ตตรงๆ ไม่ได้ แต่ก็เปิดเผย network
+topology ภายในให้คนนอกเห็น **การเอาไอคอน GitHub ออกจากหน้าเว็บไม่ได้แก้ปัญหานี้** — repo ยังเป็น
+public เหมือนเดิม ทางเลือกที่ยังไม่ได้ตัดสินใจ: (ก) แก้ไฟล์ปัจจุบันเอา IP/username ออก แต่ history
+เก่ายังเห็นได้ผ่าน `git log`, (ข) rewrite git history ทั้ง repo ให้หายจริง ต้อง force-push ทุก branch
+ทำให้ repo ที่คนอื่น clone ไปแล้วพัง, (ค) เปลี่ยน repo เป็น private ง่ายสุดแต่ปิดโอกาสให้คนอื่น
+ดู/contribute
 
 ---
 
@@ -223,42 +275,42 @@ both GET and POST API routes all respond. Also verified against a *minimal* tree
 
 ## Blocked on you
 
-1. **DNS pointed at `203.0.113.10`** before Caddy/TLS can go on — it requests the certificate on
-   startup and fails if the A record hasn't propagated. Confirm whether you want `www` too.
-2. **A real email for Let's Encrypt** to replace `admin@ainaidee.com` in the `Caddyfile`.
+1. **The public-repo internal-IP leak (see above)** — pick a remediation: scrub current files only,
+   rewrite git history, or make the repo private. Nothing done here yet beyond removing the GitHub
+   link from the site's own nav/footer, which doesn't touch the repo itself.
+2. **Write and publish a real first blog post** — `/blog` now pulls live from Ghost, but the only
+   post live is Ghost's own default "Coming soon" sample. Remember: posts are fetched at **build
+   time**, so publishing in Ghost admin needs a rebuild+redeploy here afterward, not just a Ghost-side
+   save.
 3. **Is anything else on that server already using ports 80/443?** It's a shared box running ~11
    other containers. If something's already there, keep Caddy off and point your existing proxy at
    `127.0.0.1:8587` instead.
 4. **Turso telemetry on or off?** Off by default; everything works without it. If on, put the
    tokens in `.env` **on the server** — do not paste them into chat.
-5. **Manual or automatic deploys?** Right now it's manual: edit locally, scp the changed files up,
-   `docker compose up -d --build` over SSH. `git pull` on the server is an option once you're
-   comfortable giving that box pull access to the repo.
-6. **Do you want the design applied to the real home page?** `/design` is still a proposal, now
-   confirmed working (including with an ad blocker on) at http://203.0.113.10:8587/design.
+5. **Manual or automatic deploys?** Right now it's manual: `git archive HEAD` piped over SSH into a
+   fresh directory, swap it in, `docker compose build app && docker compose up -d app`. `git pull`
+   on the server is an option once you're comfortable giving that box pull access to the repo.
+6. **Continue the Thai localization to the rest of the site, or pause here?** See "Next up" below
+   for exactly what's left.
 
 ---
 
 ## Next up, roughly in order
 
-1. Point DNS at the server, put a real email in the `Caddyfile`, set `SITE_URL` to the real domain
-   in `.env` **and rebuild** (it's baked in, not read at runtime), then
-   `docker compose --profile tls up -d`.
-2. Apply the design direction to the real home page (`ModelListContent.astro` is 2,279 lines — this
-   is the big one) and `Layout.astro`. Keep the `nd-` class prefix convention, not `ad-`.
+1. **Decide + act on the internal-IP leak** in the public repo (see "Blocked on you" #1).
+2. **Finish Thai localization**: `why.astro`, `compare.astro`, `tier.astro`, `docs.astro`,
+   `license/[id].astro`, `blog/index.astro` + `blog/[slug].astro` chrome, `model/[id].astro`,
+   `device/[id].astro`, and the playground chat UI's own microcopy (New chat, Search chats,
+   Settings panel, model picker, etc.) all still render in English. Keep the established pattern:
+   technical terms (GPU, VRAM, RAM, WebGPU, grade letters, quant codes, MoE) stay English; reuse
+   the `USE_CASE_TH` map now duplicated in both `design.astro` and `ModelListContent.astro` for
+   task-category labels instead of inventing new translations.
 3. Add Thai/SEA models: Typhoon, OpenThaiGPT, SeaLLM, WangchanX. One entry each in
    `packages/models/src/index.ts`; quantisation sizes derive automatically from the parameter count.
-4. Localise the site copy to Thai.
-5. The fine-tuning / LoRA feasibility mode from `idea.md` — "can my machine *train* this?", which
+4. The fine-tuning / LoRA feasibility mode from `idea.md` — "can my machine *train* this?", which
    is the differentiator upstream does not have.
-6. Blog — decided (SQLite, no membership yet, `blog.ainaidee.com`, multi-writer) and the Astro
-   side is built and building clean: routes, OG image, Schema.org, `ghost` service in
-   `docker-compose.yml` behind `profiles: ["blog"]`. Blocked on you: DNS for `blog.ainaidee.com`,
-   how to expose Ghost's first-run setup before Caddy exists, and creating the Ghost owner
-   account yourself (an AI assistant can't create accounts/passwords). Details:
-   [`docs/blog-plan.md`](./blog-plan.md) + [`docs/blog-architecture.md`](./blog-architecture.md).
-   SEO work for the rest of the site is separate and still unstarted.
-7. Rename `canirun-ai` / `@canirun/*` to AiNaiDee.
+5. SEO work for the rest of the site — separate from localization, still unstarted.
+6. Rename `canirun-ai` / `@canirun/*` to AiNaiDee.
 
 ---
 

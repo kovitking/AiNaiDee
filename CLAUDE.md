@@ -11,10 +11,13 @@ server-side hardware processing.
 
 Fork goals are recorded in `docs/idea.md` and `docs/draft-plan.md` (Thai): add Thai/SEA models
 (Typhoon, OpenThaiGPT, SeaLLM, WangchanX — not yet added), add a fine-tuning/LoRA feasibility mode
-alongside the existing inference-only check, localize the UI to Thai, and add a blog (Astro side
-now scaffolded, see "Blog" below). The `/design` proposal page, Docker/Caddy setup, `docs/`, the
-Vercel→Node migration and the blog scaffold are all built and committed; applying `/design` to the
-real home page and Thai localization are not.
+alongside the existing inference-only check, localize the UI to Thai, and add a blog. The `/design`
+direction has been applied to the real home page (`ModelListContent.astro` rewritten on its
+row+ruler layout, `src/styles/global.css` re-themed site-wide) and deployed — see "Rebranding still
+to do" for what's left. Thai localization is **partial**: the home page, `NavHeader`, `Footer`, and
+`playground.astro`'s welcome copy are translated (technical terms kept in English — GPU, VRAM, RAM,
+WebGPU, grade letters, quant codes, MoE); `why`/`compare`/`tier`/`docs`/`license`/`blog` pages,
+`model/[id]`/`device/[id]`, and the playground chat UI's own microcopy are still English.
 
 ## State of this checkout
 
@@ -195,25 +198,33 @@ from a **user-origin** stylesheet. That is invisible to normal debugging:
 
 The page rendered as a headerless shell with 83 rows present in the DOM at zero height. Diagnose it
 by renaming the class at runtime — if `display` flips from `none` to its real value, a blocker is
-filtering the name. The prefix is now `nd-`. Do not reintroduce `ad-` (or `ads-`, `banner-`,
-`sponsor-`) when the design moves onto the real home page.
+filtering the name. The prefix is `nd-` everywhere now, including the real home page
+(`ModelListContent.astro` was rewritten onto this layout — see "Rebranding still to do"). Do not
+reintroduce `ad-` (or `ads-`, `banner-`, `sponsor-`) anywhere in the site.
 
-### Blog — Astro side built, Ghost not yet deployed
+### Blog — live, Ghost deployed and wired to the site
 
 `src/lib/ghost.ts` wraps `@tryghost/content-api`. It reads `GHOST_URL` and `GHOST_CONTENT_API_KEY`
-from the environment; if either is unset, `api` stays `null` and every exported function
-(`getPosts`, `getPost`) returns an empty result instead of throwing, so `/blog` and
+**at build time** (not runtime — see `getPosts`/`getPost`); if either is unset, `api` stays `null`
+and every exported function returns an empty result instead of throwing, so `/blog` and
 `/blog/[slug].astro` render a "coming soon" state and the rest of the site's build is unaffected.
-`blogConfigured` is the flag pages check to decide which state to render. `src/pages/og/blog/[slug].jpg.ts`
-generates a satori OG image fallback for posts. None of this requires Ghost to be running to build
-or test the site.
+`blogConfigured` is the flag pages check to decide which state to render. Both are now set as build
+args on the deployed image, so `/blog` renders real Ghost content — currently just Ghost's own
+default "Coming soon" sample post, since no real post has been published yet. **Publishing a new
+post in Ghost admin requires a rebuild+redeploy of the site** to show up; it does not appear on its
+own. `src/pages/og/blog/[slug].jpg.ts` generates a satori OG image fallback for posts without a
+`feature_image`.
 
 `docker-compose.yml` defines `ghost` (image `ghost:6-alpine`) and `ghost-db` (MySQL 8, not SQLite —
 Ghost's Docker image restricts SQLite to `NODE_ENV=development`) behind `profiles: ["blog"]`, so
-they don't start with a normal `docker compose up`. `GHOST_DB_PASSWORD` has no default and fails
-compose validation if unset. Bringing the blog online (domain, first-run Ghost setup, owner account
-creation) is tracked in `docs/blog-plan.md` and `docs/blog-architecture.md` — the account-creation
-step specifically needs a human, not an agent.
+they don't start with a normal `docker compose up`; both are running on the deployed server.
+`GHOST_DB_PASSWORD` has no default and fails compose validation if unset. Ghost admin is served at
+`blog.ainaidee.com/ghost` through Caddy (`admin__url` matches the public site url; Caddy forces
+`X-Forwarded-Proto: https` since Imperva terminates TLS and forwards plain HTTP — Ghost otherwise
+marks its session cookie `Secure` and every authenticated request 403s). `staffDeviceVerification`
+is disabled because no SMTP is configured, so the emailed 2FA code Ghost 6 requires at login can
+never arrive; re-enable it if SMTP is ever set up. Details in `docs/blog-plan.md` and
+`docs/blog-architecture.md`.
 
 ### Other pieces
 
@@ -243,10 +254,10 @@ Everything works with no environment variables except telemetry: `/api/runai/met
 via `@libsql/client` and **throws** unless `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` are set. Schema
 is in `scripts/sql/runai-metrics.sql`.
 
-`SITE_URL` is read by `Dockerfile` and `docker-compose.yml` and passed as a build arg, but
-`astro.config.mjs` **does not consume it yet** — wiring it up is part of the unfinished migration.
-Once wired, it is baked into the build (sitemap + every absolute OG image URL), so changing the
-domain means rebuilding, not restarting.
+`SITE_URL` is read by `Dockerfile`/`docker-compose.yml` as a build arg and consumed by
+`astro.config.mjs` (`site: process.env.SITE_URL || 'https://ainaidee.com'`). It is baked into the
+build (sitemap + every absolute OG image URL), so changing the domain means rebuilding, not
+restarting. `GHOST_URL` and `GHOST_CONTENT_API_KEY` are build args the same way (see "Blog" below).
 
 ## Deployment
 
@@ -254,26 +265,33 @@ Targets a plain Node server, not Vercel: `@astrojs/node` in `standalone` mode, p
 Do not upgrade it casually — 10.1.4 and 11.x import Astro internals (`writeResponse`,
 `getAbortControllerCleanup`) that do not exist in Astro 6.3.3, and the build fails.
 
-### Currently deployed (phase 1, since 2026-07-31)
+### Currently deployed — live at ainaidee.com
 
-Live at **http://203.0.113.10:8587** on `deploy@203.0.113.10` (Ubuntu 24.04.2, x86_64, 12 GB,
-Docker 29.3.0), source at `~/apps/ainaidee`, container `ainaidee-app-1`, `restart: unless-stopped`.
-Plain HTTP on the LAN, no TLS yet. That box already runs ~11 other demo containers, several on
-adjacent ports (8585, 8586) — check `docker ps` before claiming a port.
+Real domains work now: **`ainaidee.com`**, **`www.ainaidee.com`**, **`blog.ainaidee.com`** — all
+sit behind **Imperva Incapsula (CWAF)**, which terminates TLS and forwards plain HTTP to the origin
+at `203.0.113.10:8587` for every hostname alike. `Caddy` (container `ainaidee-caddy-1`, no
+`profiles` gate — it always starts) is the only thing listening on `:8587`; its one job is
+Host-header routing, not certificates (`auto_https off` in the `Caddyfile` — Imperva does TLS, not
+Caddy). It sends `ainaidee.com`/`www` to `app:4321`, and splits `blog.ainaidee.com` between the
+`ghost` container (`/ghost*`, `/content/*`) and `app:4321` (everything else, rewritten to `/blog*`).
 
-Deploy loop: rsync/scp the tree up, then `docker compose up -d --build`. The repo is pushed to
-`origin` (`github.com/kovitking/AiNaiDee`), but the server deploy is manual scp, not `git pull` —
-the box hasn't been given pull access to the repo. Switching to `git pull`-based deploys is an open
-option, not yet adopted (see `docs/STATUS.md`, "Blocked on you").
+Origin box: `deploy@203.0.113.10` (Ubuntu 24.04.2, x86_64, 12 GB, Docker 29.3.0), source at
+`~/apps/ainaidee`, app container `ainaidee-app-1`, `restart: unless-stopped`. That box already runs
+~11 other demo containers on adjacent ports (8585, 8586) — check `docker ps` before claiming a
+port. **Do not assume `203.0.113.10:8587` reflects `main`** — it's the deploy target, updated only
+when someone deploys, same as any server.
 
-Caddy is still defined in `docker-compose.yml` but sits behind `profiles: ["tls"]`, so it does not
-start. Phase 2, once DNS points at the box: put a real address in the `Caddyfile` `email` line, set
-`SITE_URL` in `.env` on the server, **rebuild** (SITE_URL is baked in, not read at runtime), then
-`docker compose --profile tls up -d`. Caddy reaches the app as `app:4321` over the compose network,
-so it does not conflict with the 8587 publish.
+Deploy loop: `git archive HEAD | ssh deploy@203.0.113.10 'tar -x -C ~/apps/ainaidee_new'` into a
+**fresh directory** (never `rsync`/scp over the live one — line-ending mismatches from this repo's
+Mac/Windows OneDrive sync make in-place diffs meaningless), copy `.env` over, swap the directory in
+(keep the old one as a timestamped backup, don't delete it), then
+`docker compose build app && docker compose up -d app`. `main` is pushed to `origin`
+(`github.com/kovitking/AiNaiDee`), but the server deploy is this manual archive-and-swap, not
+`git pull` — the box hasn't been given pull access to the repo. Switching to `git pull`-based
+deploys is an open option, not yet adopted (see `docs/STATUS.md`, "Blocked on you").
 
-See `docs/deploy.md` and `docs/deploy-architecture.md` — both still describe the phase-2 Caddy
-layout as if it were current.
+`docs/deploy.md` and `docs/deploy-architecture.md` still describe an older phase-2-Caddy-behind-a-
+profile plan that is no longer how this works — Imperva replaced Caddy's TLS role entirely.
 
 ### Container build traps
 
@@ -312,10 +330,28 @@ grep -rhoE "from *[\"'][@a-z][^\"'./][^\"']*[\"']" dist/server/ | sort -u
 - `package.json` is still named `canirun-ai`; the workspace packages are still `@canirun/*`, and both
   package manifests still point `homepage`/`repository` at canirun.ai and midudev's repo. The
   Dockerfile's `--filter "canirun-ai..."` depends on that root name — rename both together.
-- Copy throughout `src/pages/` and `src/layouts/Layout.astro` is upstream English/branding.
-- The new visual direction lives at `/design` only (untracked, standalone, deliberately not using
-  `Layout.astro`); the real home page is untouched. Applying it means editing
-  `src/components/ModelListContent.astro`, which is 2,279 lines — the big one. See
-  `docs/design-direction.md`.
+- The `/design` visual direction (indigo/bone/saffron palette, Chakra Petch/IBM Plex fonts,
+  row+ruler layout) **is applied to the real home page** — `src/styles/global.css` theme tokens,
+  `ModelListContent.astro`, `NavHeader.astro`, `Footer.astro`, `Layout.astro` were all rewritten
+  onto it and deployed. `src/pages/design.astro` itself is now a stale standalone demo, superseded
+  by the real thing — safe to delete once nobody needs it as a reference. `why.astro`,
+  `compare.astro`, `tier.astro`, `docs.astro`, `license/[id].astro`, `blog/*`, `model/[id].astro`
+  and `device/[id].astro` inherit the new color/font tokens automatically (same Tailwind utility
+  classes) but haven't been individually reviewed for leftover hardcoded old-palette colors the way
+  `tier.astro`/`why.astro`/`docs.astro` were during the rollout.
+- **Thai localization is partial.** Done: home page, `NavHeader`, `Footer`,
+  `playground.astro`'s welcome/instructions panel — technical terms (GPU, VRAM, RAM, WebGPU, grade
+  letters S–F, quant codes like `Q4_K_M`, MoE) stay English on purpose. Not done: `why`, `compare`,
+  `tier`, `docs`, `license/*`, `blog/*` page copy, `model/[id]`/`device/[id]` detail pages, and the
+  playground chat UI's own microcopy (New chat, Search chats, Settings panel, model picker, etc).
+  Reuse the `USE_CASE_TH` map (task-category labels) already duplicated in `design.astro` and
+  `ModelListContent.astro` rather than inventing new translations for the same terms.
+- **The GitHub icon/link was removed from `NavHeader`/`Footer`**, because the public
+  `kovitking/AiNaiDee` repo has internal deployment IP/SSH-username comments committed in several
+  docs (`docker-compose.yml`, `CLAUDE.md` — yes, this file, `docs/STATUS.md`, `docs/deploy.md`,
+  `docs/deploy-architecture.md`, `docs/blog-plan.md`, `docs/blog-architecture.md`). Removing the
+  site's link to the repo does **not** fix this — the repo is still public and `git log` still has
+  the IP in every one of those files' history. Scrubbing it (or making the repo private) is
+  unresolved; see `docs/STATUS.md` → "Blocked on you".
 
 Current state, decisions and open questions: **`docs/STATUS.md`**.
