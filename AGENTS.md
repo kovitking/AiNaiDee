@@ -1,22 +1,26 @@
 # AGENTS.md
 
-Instrucciones para agentes que trabajen en este repositorio.
+Instructions for coding agents working in this repository.
+See `CLAUDE.md` for commands and architecture.
 
-## Verificaciones automáticas
+## Package manager
 
-**No ejecutes verificación de tipos ni linters salvo que se te pida explícitamente.**
+Always use `pnpm` (pinned to `11.1.3`). Never `npm`, `yarn`, `npx`, or `bun install` / `bun run`.
+Do not add npm, Yarn, or Bun lockfiles.
 
-Eso incluye, entre otros:
+Install from the workspace root. To run a script in one package:
 
-- `pnpm astro check` / `astro check`
-- `tsc`, `tsc --noEmit`, `pnpm packages:typecheck`
-- `eslint`, `pnpm lint`, cualquier comando de linting
-- `pnpm test` / `vitest` salvo petición expresa
+```bash
+pnpm --filter runai <script>
+```
 
-Razón: estos comandos son largos en este proyecto y rara vez aportan información que el agente no pueda obtener con `ReadLints` puntual sobre los ficheros modificados. Confía en `ReadLints` y en la inspección manual a no ser que el usuario pida lo contrario.
+`packages/runai` still targets the Bun *runtime* in its implementation code — keep APIs like
+`Bun.spawn` and `bun:sqlite` unless the task is explicitly to migrate it off Bun.
 
-Si el usuario dice algo como "verifica tipos", "pasa el typecheck", "corre los tests", "lint el proyecto" o equivalentes, entonces sí debes ejecutarlos.
+## Verification
 
-## Gestor de paquetes
+Run `pnpm test` and `pnpm packages:typecheck` after changing code. Both complete in about a second.
 
-Usa siempre `pnpm` salvo que exista `bun.lock` en el subpaquete (entonces usa `bun`). Nunca `npm`.
+This reverses the previous instruction in this file, which told agents to skip verification on the
+grounds that it was slow. Measured on this repo: 200 tests in ~1.5s, typecheck in <1s, full build
+in ~27s.
