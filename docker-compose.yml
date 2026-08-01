@@ -46,11 +46,11 @@ services:
       - ghost-db
     environment:
       url: ${GHOST_URL:-https://blog.ainaidee.com}
-      # Admin is reachable only through an SSH tunnel (the port binds to
-      # 127.0.0.1), so the admin URL must be the tunnel address — with the
-      # public URL Ghost redirects /ghost to blog.ainaidee.com, where it is
-      # deliberately unreachable.
-      admin__url: ${GHOST_ADMIN_URL:-http://localhost:2368}
+      # Admin is served through Caddy at https://blog.ainaidee.com/ghost
+      # (Imperva terminates TLS; Login Protect gates it at the edge). Serving
+      # admin over the http://localhost tunnel instead does not work: Ghost
+      # marks its session cookie Secure when the site url is https, so the
+      # browser drops it on a plain-http origin and login 403s forever.
       # No SMTP is configured, and staff logins otherwise require an emailed
       # 2FA code — which can never arrive. Admin access is already gated by
       # SSH; re-enable this if real mail transport is ever set up.
