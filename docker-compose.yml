@@ -46,6 +46,11 @@ services:
       - ghost-db
     environment:
       url: ${GHOST_URL:-https://blog.ainaidee.com}
+      # Admin is reachable only through an SSH tunnel (the port binds to
+      # 127.0.0.1), so the admin URL must be the tunnel address — with the
+      # public URL Ghost redirects /ghost to blog.ainaidee.com, where it is
+      # deliberately unreachable.
+      admin__url: ${GHOST_ADMIN_URL:-http://localhost:2368}
       database__client: mysql
       database__connection__host: ghost-db
       database__connection__user: ghost
