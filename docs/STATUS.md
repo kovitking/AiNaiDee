@@ -13,8 +13,8 @@
 
 ขั้นตอนที่ทำ:
 
-1. แก้ไฟล์ปัจจุบันทั้ง 7 ไฟล์ที่มี IP/username จริง แทนที่ `203.0.113.10` → `203.0.113.10`
-   (RFC 5737 TEST-NET-3, IP ตัวอย่างมาตรฐานสำหรับเอกสาร) และ `deploy@` → `deploy@` ทั่วทั้ง repo
+1. แก้ไฟล์ปัจจุบันทั้ง 7 ไฟล์ที่มี IP/username จริง แทนที่ด้วย `203.0.113.10`
+   (RFC 5737 TEST-NET-3, IP ตัวอย่างมาตรฐานสำหรับเอกสาร) และ `deploy@` ทั่วทั้ง repo
 2. ใช้ `git-filter-repo --replace-text` (ติดตั้งผ่าน `brew install git-filter-repo`) รัน replace
    เดียวกันย้อนไปทุก commit ทุก branch (`main`, `design-visual-direction-rollout`, `ainaidee/setup`)
 3. Force-push ทับ `origin/main` และทุก branch ที่เคย push ไว้
@@ -22,8 +22,7 @@
 **ผลที่ตามมาที่ต้องรู้**: ทุก commit hash ในประวัติเปลี่ยนหมด (เพราะ filter-repo เขียน tree/commit
 object ใหม่ทั้งสายตั้งแต่จุดแรกที่มี string โดนแทนที่) — clone เก่าที่มีอยู่ (ถ้ามี) จะ diverge จาก
 `origin` ทันที ต้อง `git clone` ใหม่ ไม่ใช่ `git pull`/`fetch` ต่อยอดของเดิม เครื่อง server deploy
-(`deploy@` เดิม, ตอนนี้คือ `deploy@`) ก็ deploy จาก `git archive` ไม่ใช่ `git pull` อยู่แล้วตาม
-"Deploy loop" ใน `CLAUDE.md` เลยไม่กระทบ
+เองก็ deploy จาก `git archive` ไม่ใช่ `git pull` อยู่แล้วตาม "Deploy loop" ใน `CLAUDE.md` เลยไม่กระทบ
 
 ---
 
