@@ -19,12 +19,16 @@ import IconThinking from "@/icons/thinking.svg"
 import IconVision from "@/icons/vision.svg"
 import IconStar from "@/icons/star.svg"
 import { getModelTitleTransitionName } from "@/lib/view-transitions"
+import { useTranslations, type Lang } from "@/i18n/ui"
+import { useCaseLabel } from "@/i18n/useCases"
 
 interface Props {
   deviceKey?: string
+  lang?: Lang
 }
 
-const { deviceKey } = Astro.props
+const { deviceKey, lang = (Astro.currentLocale as Lang) ?? "th" } = Astro.props
+const t = useTranslations(lang)
 
 const hfStatsTyped = hfStats as Record<
   string,
@@ -39,12 +43,56 @@ const otherModels = sortedModels.filter((m) => !m.featured)
 
 const providers = [...new Set(models.map((m) => m.provider))].sort()
 
+// Resolved strings the client-side <script> below needs but can't reach
+// Astro props for — serialized once here instead of duplicating the
+// dictionary import into the client bundle.
+const scriptI18n = {
+  gradeLabels: {
+    S: t("modelList.grades.S"),
+    A: t("modelList.grades.A"),
+    B: t("modelList.grades.B"),
+    C: t("modelList.grades.C"),
+    D: t("modelList.grades.D"),
+    F: t("modelList.grades.F"),
+    unknown: t("modelList.grades.unknown"),
+  },
+  capacityUnified: t("modelList.capacityUnified"),
+  capacityNoGpu: t("modelList.capacityNoGpu"),
+  capacityDiscrete: t("modelList.capacityDiscrete"),
+  customDevice: t("modelList.customDevice"),
+  sysramTooltipApple: t("modelList.sysramTooltipApple"),
+  sysramTooltipOther: t("modelList.sysramTooltipOther"),
+  webgpuSupported: t("modelList.webgpuSupported"),
+  webgpuUnsupported: t("modelList.webgpuUnsupported"),
+  verdictOffloadNote: t("modelList.verdictOffloadNote"),
+  speedSample: t("modelList.speedSample"),
+  speedTiers: {
+    fast: t("modelList.speedTiers.fast"),
+    smooth: t("modelList.speedTiers.smooth"),
+    ok: t("modelList.speedTiers.ok"),
+    slow: t("modelList.speedTiers.slow"),
+    painful: t("modelList.speedTiers.painful"),
+  },
+}
+
 function timeAgo(dateStr: string | null): string {
   if (!dateStr) return ""
   const now = new Date()
   const date = new Date(dateStr + "-01")
   const diffMs = now.getTime() - date.getTime()
   const days = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  if (lang === "en") {
+    if (days < 0) return "soon"
+    if (days === 0) return "today"
+    if (days === 1) return "1 day ago"
+    if (days < 30) return `${days} days ago`
+    const months = Math.floor(days / 30)
+    if (months === 1) return "1 month ago"
+    if (months < 12) return `${months} months ago`
+    const years = Math.floor(months / 12)
+    if (years === 1) return "1 year ago"
+    return `${years} years ago`
+  }
   if (days < 0) return "เร็วๆ นี้"
   if (days === 0) return "วันนี้"
   if (days === 1) return "1 วันที่แล้ว"
@@ -62,26 +110,13 @@ function ctxLabel(n: number): string {
   if (n >= 1024) return `${Math.round(n / 1024)}K`
   return String(n)
 }
-
-const USE_CASE_TH: Record<string, string> = {
-  chat: "คุยทั่วไป",
-  code: "เขียนโค้ด",
-  reasoning: "คิดวิเคราะห์",
-  vision: "ดูรูป",
-  multilingual: "หลายภาษา",
-  edge: "เครื่องเล็ก",
-  rag: "ค้นเอกสาร",
-}
-
-function useCaseLabel(uses: string[]): string {
-  return uses.map((u) => USE_CASE_TH[u] ?? u).join(", ")
-}
 ---
 
 <main
   id="results"
   class="mx-auto max-w-6xl px-4 pb-20 pt-10 sm:px-6"
   data-device-key={deviceKey}
+  data-i18n={JSON.stringify(scriptI18n)}
 >
   <!-- Page-specific header -->
   <slot name="header" />
@@ -89,11 +124,11 @@ function useCaseLabel(uses: string[]): string {
   <!-- Verdict headline — how many models run well on this machine -->
   <section class="mt-8 mb-6">
     <p class="font-mono text-xs uppercase tracking-wide text-muted">
-      จากฮาร์ดแวร์ที่ตรวจพบ
+      {t("modelList.verdictEyebrow")}
     </p>
     <h2 class="mt-1 font-pixel text-2xl leading-tight text-primary sm:text-3xl">
-      <span id="nd-count" class="font-bold text-accent">—</span> จาก
-      <span id="nd-total">{models.length}</span> โมเดลรันได้ดี
+      <span id="nd-count" class="font-bold text-accent">—</span> {t("modelList.verdictOf")}
+      <span id="nd-total">{models.length}</span> {t("modelList.verdictSuffix")}
     </h2>
     <p id="nd-count-slow" class="mt-1 min-h-[1.2em] text-sm text-secondary"></p>
   </section>
@@ -107,10 +142,10 @@ function useCaseLabel(uses: string[]): string {
       <!-- GPU -->
       <span id="hw-gpu" class="inline-flex items-center gap-1.5 text-muted">
         <span
-          data-tooltip="ตรวจจับ GPU ผ่าน API ของเบราว์เซอร์ — เป็นค่าประมาณ สเปกจริงอาจต่างไป"
+          data-tooltip={t("modelList.gpuTooltip")}
           data-tooltip-pos="bottom"
           tabindex="0"
-          aria-label="ข้อมูล GPU"
+          aria-label={t("modelList.gpuAria")}
           class="inline-flex shrink-0 flex-col items-center gap-1"
         >
           <IconGpu class="h-4 w-4 text-muted" />
@@ -120,17 +155,17 @@ function useCaseLabel(uses: string[]): string {
           >
         </span>
         <select id="hw-device-select" class="hw-editable-select" disabled>
-          <option value="">กำลังตรวจ...</option>
+          <option value="">{t("modelList.gpuDetecting")}</option>
         </select>
       </span>
       <span class="text-edge/40">|</span>
       <!-- VRAM -->
       <span id="hw-ram" class="inline-flex items-center gap-1.5 text-muted">
         <span
-          data-tooltip="VRAM — หน่วยความจำการ์ดจอสำหรับโหลดโมเดล บน Apple Silicon/iGPU จะใช้ร่วมกับ RAM ระบบ"
+          data-tooltip={t("modelList.vramTooltip")}
           data-tooltip-pos="bottom"
           tabindex="0"
-          aria-label="ข้อมูล VRAM"
+          aria-label={t("modelList.vramAria")}
           class="inline-flex shrink-0 flex-col items-center gap-1"
         >
           <IconRam class="h-4 w-4 text-muted" />
@@ -148,10 +183,10 @@ function useCaseLabel(uses: string[]): string {
       <span id="hw-bw" class="hidden inline-flex items-center gap-1.5">
         <span class="text-edge/40">|</span>
         <span
-          data-tooltip="GB/s — แบนด์วิดท์หน่วยความจำ ยิ่งสูงยิ่งประมวลผลเร็ว"
+          data-tooltip={t("modelList.bandwidthTooltip")}
           data-tooltip-pos="bottom"
           tabindex="0"
-          aria-label="ข้อมูลแบนด์วิดท์"
+          aria-label={t("modelList.bandwidthAria")}
           class="inline-flex shrink-0 flex-col items-center gap-1"
         >
           <IconBandwidth class="h-4 w-4 text-muted" />
@@ -166,10 +201,10 @@ function useCaseLabel(uses: string[]): string {
       <span id="hw-sysram" class="hidden inline-flex items-center gap-1.5">
         <span class="text-edge/40">|</span>
         <span
-          data-tooltip="RAM ระบบ — ใช้ตอนโมเดลใหญ่เกิน VRAM (CPU offload) ยิ่งมากยิ่งรันโมเดลใหญ่ได้ แต่ช้าลง"
+          data-tooltip={t("modelList.sysramTooltip")}
           data-tooltip-pos="bottom"
           tabindex="0"
-          aria-label="ข้อมูล RAM ระบบ"
+          aria-label={t("modelList.sysramAria")}
           class="inline-flex shrink-0 flex-col items-center gap-1"
         >
           <IconRam class="h-4 w-4 text-muted" />
@@ -184,10 +219,10 @@ function useCaseLabel(uses: string[]): string {
       <span id="hw-gpu-cores" class="hidden inline-flex items-center gap-1.5">
         <span class="text-edge/40">|</span>
         <span
-          data-tooltip="จำนวนคอร์ GPU — ยิ่งเยอะยิ่งประมวลผลแบบขนานได้เร็วขึ้น"
+          data-tooltip={t("modelList.gpuCoresTooltip")}
           data-tooltip-pos="bottom"
           tabindex="0"
-          aria-label="ข้อมูลคอร์ GPU"
+          aria-label={t("modelList.gpuCoresAria")}
           class="inline-flex shrink-0 flex-col items-center gap-1"
         >
           <IconCpu class="h-4 w-4 text-muted" />
@@ -203,7 +238,7 @@ function useCaseLabel(uses: string[]): string {
       id="hw-notice"
       class="mt-1.5 flex items-center justify-center gap-2 text-center text-xs text-muted invisible"
     >
-      <span>ค่าประมาณจาก API ของเบราว์เซอร์ สเปกจริงอาจแตกต่างไป</span>
+      <span>{t("modelList.hwNotice")}</span>
       <span
         id="hw-webgpu-badge"
         class="inline-flex items-center gap-1 rounded-full border px-1.5 py-px text-[10px] font-medium"
@@ -220,73 +255,73 @@ function useCaseLabel(uses: string[]): string {
       <span
         class="flex items-center gap-1.5"
         style="color: var(--color-can-run)"
-        data-tooltip="เกรด S — VRAM เหลือเฟือ ประมวลผลเร็ว"
+        data-tooltip={t("modelList.gradeTooltips.S")}
         tabindex="0"
         role="group"
-        aria-label="เกรด S: รันลื่น"
+        aria-label={`${t("modelList.gradeWord")} S: ${t("modelList.grades.S")}`}
       >
         <span id="count-s" class="font-bold text-sm sm:text-base">0</span>
-        <span class="font-medium uppercase tracking-wide">รันลื่น</span>
+        <span class="font-medium uppercase tracking-wide">{t("modelList.grades.S")}</span>
       </span>
       <span class="h-3 w-px bg-edge/40"></span>
       <span
         class="flex items-center gap-1.5"
         style="color: var(--color-grade-a)"
-        data-tooltip="เกรด A — รันลื่น มีที่ว่างเหลือ"
+        data-tooltip={t("modelList.gradeTooltips.A")}
         tabindex="0"
         role="group"
-        aria-label="เกรด A: รันดี"
+        aria-label={`${t("modelList.gradeWord")} A: ${t("modelList.grades.A")}`}
       >
         <span id="count-a" class="font-bold text-sm sm:text-base">0</span>
-        <span class="font-medium uppercase tracking-wide">รันดี</span>
+        <span class="font-medium uppercase tracking-wide">{t("modelList.grades.A")}</span>
       </span>
       <span class="h-3 w-px bg-edge/40"></span>
       <span
         class="flex items-center gap-1.5"
         style="color: var(--color-grade-b)"
-        data-tooltip="เกรด B — พอใช้ ใช้หน่วยความจำเกือบเต็ม"
+        data-tooltip={t("modelList.gradeTooltips.B")}
         tabindex="0"
         role="group"
-        aria-label="เกรด B: พอใช้"
+        aria-label={`${t("modelList.gradeWord")} B: ${t("modelList.grades.B")}`}
       >
         <span id="count-b" class="font-bold text-sm sm:text-base">0</span>
-        <span class="font-medium uppercase tracking-wide">พอใช้</span>
+        <span class="font-medium uppercase tracking-wide">{t("modelList.grades.B")}</span>
       </span>
       <span class="h-3 w-px bg-edge/40"></span>
       <span
         class="flex items-center gap-1.5"
         style="color: var(--color-maybe)"
-        data-tooltip="เกรด C — พอดีตัว ประมวลผลช้าลง"
+        data-tooltip={t("modelList.gradeTooltips.C")}
         tabindex="0"
         role="group"
-        aria-label="เกรด C: ตึงๆ"
+        aria-label={`${t("modelList.gradeWord")} C: ${t("modelList.grades.C")}`}
       >
         <span id="count-c" class="font-bold text-sm sm:text-base">0</span>
-        <span class="font-medium uppercase tracking-wide">ตึงๆ</span>
+        <span class="font-medium uppercase tracking-wide">{t("modelList.grades.C")}</span>
       </span>
       <span class="h-3 w-px bg-edge/40"></span>
       <span
         class="flex items-center gap-1.5"
         style="color: var(--color-grade-d)"
-        data-tooltip="เกรด D — พอรันได้ ช้ามาก"
+        data-tooltip={t("modelList.gradeTooltips.D")}
         tabindex="0"
         role="group"
-        aria-label="เกรด D: แทบไม่ไหว"
+        aria-label={`${t("modelList.gradeWord")} D: ${t("modelList.grades.D")}`}
       >
         <span id="count-d" class="font-bold text-sm sm:text-base">0</span>
-        <span class="font-medium uppercase tracking-wide">แทบไม่ไหว</span>
+        <span class="font-medium uppercase tracking-wide">{t("modelList.grades.D")}</span>
       </span>
       <span class="h-3 w-px bg-edge/40"></span>
       <span
         class="flex items-center gap-1.5"
         style="color: var(--color-cannot-run)"
-        data-tooltip="เกรด F — หน่วยความจำไม่พอรันโมเดลนี้"
+        data-tooltip={t("modelList.gradeTooltips.F")}
         tabindex="0"
         role="group"
-        aria-label="เกรด F: หนักเกินไป"
+        aria-label={`${t("modelList.gradeWord")} F: ${t("modelList.grades.F")}`}
       >
         <span id="count-f" class="font-bold text-sm sm:text-base">0</span>
-        <span class="font-medium uppercase tracking-wide">หนักเกินไป</span>
+        <span class="font-medium uppercase tracking-wide">{t("modelList.grades.F")}</span>
       </span>
     </div>
   </div>
@@ -301,7 +336,7 @@ function useCaseLabel(uses: string[]): string {
       <input
         id="search-input"
         type="text"
-        placeholder="ค้นหาโมเดล..."
+        placeholder={t("modelList.searchPlaceholder")}
         class="filter-select w-full !pl-8 pr-8"
         autocomplete="off"
       />
@@ -315,46 +350,46 @@ function useCaseLabel(uses: string[]): string {
 
     <!-- Status filter -->
     <select id="filter-status" class="filter-select">
-      <option value="all">ทุกเกรด</option>
-      <option value="featured">ยอดนิยม</option>
-      <option value="can-run">รันได้ (S/A/B)</option>
-      <option value="tight">ตึงๆ (C/D)</option>
-      <option value="cannot-run">หนักเกินไป (F)</option>
+      <option value="all">{t("modelList.filterStatusAll")}</option>
+      <option value="featured">{t("modelList.filterStatusFeatured")}</option>
+      <option value="can-run">{t("modelList.filterStatusCanRun")}</option>
+      <option value="tight">{t("modelList.filterStatusTight")}</option>
+      <option value="cannot-run">{t("modelList.filterStatusCannotRun")}</option>
     </select>
 
     <!-- Use case filter -->
     <select id="filter-use" class="filter-select">
-      <option value="all">ทุกงาน</option>
-      <option value="chat">คุยทั่วไป</option>
-      <option value="code">เขียนโค้ด</option>
-      <option value="reasoning">คิดวิเคราะห์</option>
-      <option value="vision">ดูรูป</option>
+      <option value="all">{t("modelList.filterUseAll")}</option>
+      <option value="chat">{useCaseLabel(["chat"], lang)}</option>
+      <option value="code">{useCaseLabel(["code"], lang)}</option>
+      <option value="reasoning">{useCaseLabel(["reasoning"], lang)}</option>
+      <option value="vision">{useCaseLabel(["vision"], lang)}</option>
     </select>
 
     <!-- Provider filter -->
     <select id="filter-provider" class="filter-select">
-      <option value="all">ทุกผู้พัฒนา</option>
+      <option value="all">{t("modelList.filterProviderAll")}</option>
       {providers.map((p) => <option value={p}>{p}</option>)}
     </select>
 
     <!-- License filter -->
     <select id="filter-license" class="filter-select">
-      <option value="all">ทุกสัญญาอนุญาต</option>
-      <option value="commercial">ใช้เชิงพาณิชย์ได้</option>
-      <option value="non-commercial">ห้ามใช้เชิงพาณิชย์</option>
+      <option value="all">{t("modelList.filterLicenseAll")}</option>
+      <option value="commercial">{t("modelList.filterLicenseCommercial")}</option>
+      <option value="non-commercial">{t("modelList.filterLicenseNonCommercial")}</option>
       {LICENSE_LIST.map((l) => <option value={l}>{l}</option>)}
     </select>
 
     <!-- Sort -->
     <select id="sort-select" class="filter-select">
-      <option value="score">เรียง: คะแนน</option>
-      <option value="params-asc">เรียง: Params ↑</option>
-      <option value="params-desc">เรียง: Params ↓</option>
-      <option value="release">เรียง: ใหม่สุด</option>
-      <option value="context">เรียง: Context</option>
-      <option value="toks">เรียง: ความเร็ว</option>
-      <option value="vram">เรียง: VRAM ↑</option>
-      <option value="downloads">เรียง: ความนิยม</option>
+      <option value="score">{t("modelList.sortScore")}</option>
+      <option value="params-asc">{t("modelList.sortParamsAsc")}</option>
+      <option value="params-desc">{t("modelList.sortParamsDesc")}</option>
+      <option value="release">{t("modelList.sortRelease")}</option>
+      <option value="context">{t("modelList.sortContext")}</option>
+      <option value="toks">{t("modelList.sortToks")}</option>
+      <option value="vram">{t("modelList.sortVram")}</option>
+      <option value="downloads">{t("modelList.sortDownloads")}</option>
     </select>
   </div>
 
@@ -377,8 +412,8 @@ function useCaseLabel(uses: string[]): string {
     <div class="nd-row nd-row-you">
       <div class="nd-row-grade"></div>
       <div class="nd-row-name">
-        <span class="nd-row-title">เครื่องของคุณ</span>
-        <span class="nd-row-meta" id="nd-cap-meta">กำลังตรวจฮาร์ดแวร์…</span>
+        <span class="nd-row-title">{t("modelList.yourMachine")}</span>
+        <span class="nd-row-meta" id="nd-cap-meta">{t("modelList.detectingHardware")}</span>
       </div>
       <div class="nd-track nd-track-you">
         <div class="nd-bar nd-bar-you" id="nd-cap-bar"></div>
@@ -390,8 +425,8 @@ function useCaseLabel(uses: string[]): string {
     </div>
 
     <p class="nd-help">
-      แต่ละแถบคือหน่วยความจำที่โมเดลต้องใช้ที่ระดับบีบอัด Q4_K_M วัดบนไม้บรรทัดเดียวกันทั้งหน้า
-      แถบที่หยุดก่อนเส้นสีส้มคือรันได้สบาย ส่วนที่ล้ำเส้นออกไปต้องยืม RAM ระบบมาช่วย ซึ่งช้าลงมาก
+      {t("modelList.rulerHelp1")}
+      {t("modelList.rulerHelp2")}
     </p>
 
     <!-- Popular models -->
@@ -435,21 +470,21 @@ function useCaseLabel(uses: string[]): string {
                       </i>
                     )}
                     {model.tools && (
-                      <i class="nd-tag" title="เรียกใช้เครื่องมือได้">
+                      <i class="nd-tag" title={t("modelList.tagTool")}>
                         <IconTool class="h-2.5 w-2.5" />
                       </i>
                     )}
                     {model.thinking && (
-                      <i class="nd-tag" title="คิดวิเคราะห์">
+                      <i class="nd-tag" title={t("modelList.tagThinking")}>
                         <IconThinking class="h-2.5 w-2.5" />
                       </i>
                     )}
                     {model.useCase.includes("vision") && (
-                      <i class="nd-tag" title="ดูรูป">
+                      <i class="nd-tag" title={t("modelList.tagVision")}>
                         <IconVision class="h-2.5 w-2.5" />
                       </i>
                     )}
-                    <i class="nd-tag nd-tag-star" title="ยอดนิยม"
+                    <i class="nd-tag nd-tag-star" title={t("modelList.tagFeatured")}>
                       <IconStar class="h-2.5 w-2.5" />
                     </i>
                   </span>
@@ -459,7 +494,7 @@ function useCaseLabel(uses: string[]): string {
                   {model.architecture === "moe"
                     ? ` (active ${getActiveParamsBillions(model).toFixed(0)}B)`
                     : ""}{" "}
-                  · {useCaseLabel(model.useCase)} · ctx {ctxLabel(model.contextLength)} ·{" "}
+                  · {useCaseLabel(model.useCase, lang)} · ctx {ctxLabel(model.contextLength)} ·{" "}
                   {model.architecture === "moe" ? "MoE" : "Dense"}
                   {model.license && (
                     <>
@@ -508,7 +543,7 @@ function useCaseLabel(uses: string[]): string {
     <!-- Section divider -->
     <div id="rest-divider" class="my-8 flex items-center gap-4">
       <div class="h-px flex-1 bg-edge/30"></div>
-      <span class="font-mono text-[13px] text-muted/60">โมเดลทั้งหมด</span>
+      <span class="font-mono text-[13px] text-muted/60">{t("modelList.allModelsDivider")}</span>
       <div class="h-px flex-1 bg-edge/30"></div>
     </div>
 
@@ -552,17 +587,17 @@ function useCaseLabel(uses: string[]): string {
                       </i>
                     )}
                     {model.tools && (
-                      <i class="nd-tag" title="เรียกใช้เครื่องมือได้">
+                      <i class="nd-tag" title={t("modelList.tagTool")}>
                         <IconTool class="h-2.5 w-2.5" />
                       </i>
                     )}
                     {model.thinking && (
-                      <i class="nd-tag" title="คิดวิเคราะห์">
+                      <i class="nd-tag" title={t("modelList.tagThinking")}>
                         <IconThinking class="h-2.5 w-2.5" />
                       </i>
                     )}
                     {model.useCase.includes("vision") && (
-                      <i class="nd-tag" title="ดูรูป">
+                      <i class="nd-tag" title={t("modelList.tagVision")}>
                         <IconVision class="h-2.5 w-2.5" />
                       </i>
                     )}
@@ -573,7 +608,7 @@ function useCaseLabel(uses: string[]): string {
                   {model.architecture === "moe"
                     ? ` (active ${getActiveParamsBillions(model).toFixed(0)}B)`
                     : ""}{" "}
-                  · {useCaseLabel(model.useCase)} · ctx {ctxLabel(model.contextLength)} ·{" "}
+                  · {useCaseLabel(model.useCase, lang)} · ctx {ctxLabel(model.contextLength)} ·{" "}
                   {model.architecture === "moe" ? "MoE" : "Dense"}
                   {model.license && (
                     <>
@@ -621,22 +656,22 @@ function useCaseLabel(uses: string[]): string {
 
     <!-- No results empty state -->
     <div id="no-results" class="hidden py-20 text-center">
-      <p class="font-pixel text-lg text-muted/60">ไม่พบโมเดล</p>
+      <p class="font-pixel text-lg text-muted/60">{t("modelList.noResultsTitle")}</p>
       <p class="mt-2 text-base text-muted/40">
-        ลองปรับคำค้นหาหรือตัวกรองดูครับ
+        {t("modelList.noResultsBody")}
       </p>
       <button
         id="reset-filters"
         class="mt-5 inline-flex items-center gap-1.5 rounded-lg border border-edge/60 bg-surface-raised px-4 py-2 font-mono text-sm text-secondary transition-colors hover:border-accent/30 hover:bg-surface-hover hover:text-primary cursor-pointer"
       >
-        ล้างตัวกรอง
+        {t("modelList.resetFilters")}
       </button>
     </div>
   </section>
 
-  <Footer class="mt-20">
+  <Footer class="mt-20" lang={lang}>
     <p class="text-[13px] text-muted/70">
-      ข้อมูลอ้างอิงจาก <a
+      {t("footer.dataCreditPrefix")} <a
         href="https://github.com/ggerganov/llama.cpp"
         target="_blank"
         rel="noopener"
@@ -648,7 +683,7 @@ function useCaseLabel(uses: string[]): string {
         rel="noopener"
         class="text-muted underline decoration-edge underline-offset-2 hover:text-primary"
         >Ollama</a
-      > และ <a
+      > {t("footer.and")} <a
         href="https://lmstudio.ai"
         target="_blank"
         rel="noopener"
@@ -684,14 +719,43 @@ function useCaseLabel(uses: string[]): string {
   } from "@/lib/hardware-ui"
   import { deviceKeyToSlug, slugToDeviceKey } from "@/lib/device-slugs"
 
-  const GRADES: Record<Grade, GradeInfo> = {
-    S: { letter: "S", label: "รันลื่น", color: "var(--color-can-run)" },
-    A: { letter: "A", label: "รันดี", color: "var(--color-grade-a)" },
-    B: { letter: "B", label: "พอใช้", color: "var(--color-grade-b)" },
-    C: { letter: "C", label: "ตึงๆ", color: "var(--color-maybe)" },
-    D: { letter: "D", label: "แทบไม่ไหว", color: "var(--color-grade-d)" },
-    F: { letter: "F", label: "หนักเกินไป", color: "var(--color-cannot-run)" },
-    "?": { letter: "?", label: "ไม่ทราบ", color: "var(--color-muted)" },
+  interface ScriptI18n {
+    gradeLabels: { S: string; A: string; B: string; C: string; D: string; F: string; unknown: string }
+    capacityUnified: string
+    capacityNoGpu: string
+    capacityDiscrete: string
+    customDevice: string
+    sysramTooltipApple: string
+    sysramTooltipOther: string
+    webgpuSupported: string
+    webgpuUnsupported: string
+    verdictOffloadNote: string
+    speedSample: string
+    speedTiers: { fast: string; smooth: string; ok: string; slow: string; painful: string }
+  }
+
+  // Recomputed on every "astro:page-load" (see Boot section below), not just
+  // once at module init — this script module persists across Astro's
+  // client-side view transitions, so a stale I18N/GRADES here would keep
+  // showing the previous page's language after navigating between / and /en/.
+  let I18N: ScriptI18n = {} as ScriptI18n
+  let GRADES: Record<Grade, GradeInfo> = {} as Record<Grade, GradeInfo>
+
+  function loadI18n() {
+    I18N = JSON.parse(document.getElementById("results")?.dataset.i18n || "{}")
+    GRADES = {
+      S: { letter: "S", label: I18N.gradeLabels.S, color: "var(--color-can-run)" },
+      A: { letter: "A", label: I18N.gradeLabels.A, color: "var(--color-grade-a)" },
+      B: { letter: "B", label: I18N.gradeLabels.B, color: "var(--color-grade-b)" },
+      C: { letter: "C", label: I18N.gradeLabels.C, color: "var(--color-maybe)" },
+      D: { letter: "D", label: I18N.gradeLabels.D, color: "var(--color-grade-d)" },
+      F: { letter: "F", label: I18N.gradeLabels.F, color: "var(--color-cannot-run)" },
+      "?": { letter: "?", label: I18N.gradeLabels.unknown, color: "var(--color-muted)" },
+    }
+  }
+
+  function fillTemplate(template: string, values: Record<string, string | number>): string {
+    return template.replace(/\{(\w+)\}/g, (_, key) => String(values[key] ?? ""))
   }
 
   const $ = <T extends Element = HTMLElement>(s: string) =>
@@ -770,12 +834,20 @@ function useCaseLabel(uses: string[]): string {
 
   function capacityMetaText(hw: HardwareInfo, usable: number): string {
     if (hw.isAppleSilicon) {
-      return `หน่วยความจำรวม ${hw.ramGB ?? hw.totalUsableRAM ?? "—"} GB · ใช้ได้จริงราว ${usable} GB`
+      return fillTemplate(I18N.capacityUnified, {
+        ram: hw.ramGB ?? hw.totalUsableRAM ?? "—",
+        usable,
+      })
     }
     if (!hw.estimatedVRAM) {
-      return `ไม่พบการ์ดจอแยก · อาศัย RAM ระบบ ${hw.systemRAM ?? hw.ramGB ?? "—"} GB`
+      return fillTemplate(I18N.capacityNoGpu, {
+        ram: hw.systemRAM ?? hw.ramGB ?? "—",
+      })
     }
-    return `VRAM ${usable} GB · RAM ระบบ ${hw.systemRAM ?? hw.ramGB ?? "—"} GB`
+    return fillTemplate(I18N.capacityDiscrete, {
+      usable,
+      ram: hw.systemRAM ?? hw.ramGB ?? "—",
+    })
   }
 
   function updateRulerTicks(rulerMax: number) {
@@ -803,7 +875,7 @@ function useCaseLabel(uses: string[]): string {
 
     const customOpt = document.createElement("option")
     customOpt.value = "custom"
-    customOpt.textContent = "กำหนดเอง"
+    customOpt.textContent = I18N.customDevice
     select.appendChild(customOpt)
 
     appendDeviceOptgroups(select, storedDevice)
@@ -862,10 +934,7 @@ function useCaseLabel(uses: string[]): string {
         sysramSelect.classList.add("opacity-50", "cursor-not-allowed")
         fitSelectWidth(sysramSelect)
         if (sysramTooltip) {
-          sysramTooltip.setAttribute(
-            "data-tooltip",
-            "หน่วยความจำรวม — Apple Silicon ใช้ RAM ร่วมกันระหว่าง CPU และ GPU ไม่มี RAM ระบบแยกสำหรับ offload",
-          )
+          sysramTooltip.setAttribute("data-tooltip", I18N.sysramTooltipApple)
         }
       } else {
         sysramContainer.classList.remove("hidden")
@@ -901,10 +970,7 @@ function useCaseLabel(uses: string[]): string {
         sysramSelect.value = String(selected)
         fitSelectWidth(sysramSelect)
         if (sysramTooltip) {
-          sysramTooltip.setAttribute(
-            "data-tooltip",
-            "System RAM — used for CPU offloading when model doesn't fit in VRAM. More RAM = bigger models via offloading (slower)",
-          )
+          sysramTooltip.setAttribute("data-tooltip", I18N.sysramTooltipOther)
         }
       }
     }
@@ -939,18 +1005,12 @@ function useCaseLabel(uses: string[]): string {
     if (hw.webgpu) {
       webgpuBadge.className =
         "inline-flex items-center gap-1 rounded-full border border-accent/30 bg-accent/10 px-1.5 py-px text-[10px] font-medium text-accent"
-      webgpuBadge.setAttribute(
-        "data-tooltip",
-        "เบราว์เซอร์ของคุณรองรับ WebGPU — ตรวจจับ GPU ได้แม่นยำขึ้นและรันโมเดลในเบราว์เซอร์ได้",
-      )
+      webgpuBadge.setAttribute("data-tooltip", I18N.webgpuSupported)
       webgpuBadge.innerHTML = `<svg class="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span>WebGPU</span>`
     } else {
       webgpuBadge.className =
         "inline-flex items-center gap-1 rounded-full border border-cannot-run/30 bg-cannot-run/10 px-1.5 py-px text-[10px] font-medium text-cannot-run"
-      webgpuBadge.setAttribute(
-        "data-tooltip",
-        "เบราว์เซอร์ของคุณไม่รองรับ WebGPU — การตรวจจับฮาร์ดแวร์อาจไม่แม่นยำ ลองใช้ Chrome หรือ Edge เพื่อผลลัพธ์ที่ดีกว่า",
-      )
+      webgpuBadge.setAttribute("data-tooltip", I18N.webgpuUnsupported)
       webgpuBadge.innerHTML = `<svg class="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg><span>WebGPU</span>`
     }
 
@@ -1186,7 +1246,7 @@ function useCaseLabel(uses: string[]): string {
     if (totalEl) totalEl.textContent = String(total)
     if (slowEl) {
       slowEl.textContent = offloaded
-        ? `+${offloaded} more run, but need CPU offload — much slower`
+        ? `+${offloaded} ${I18N.verdictOffloadNote}`
         : ""
     }
   }
@@ -1617,8 +1677,6 @@ function useCaseLabel(uses: string[]): string {
     speedPreviewWired = true
 
     const CHARS_PER_TOKEN = 4
-    const SAMPLE =
-      "Sure! Running this model locally feels roughly like this. Each token streams in real time so you can preview the perceived chat experience before installing."
 
     let popup: HTMLElement | null = null
     let textEl: HTMLElement | null = null
@@ -1629,11 +1687,11 @@ function useCaseLabel(uses: string[]): string {
     let activeTrigger: HTMLElement | null = null
 
     function tierFor(t: number): { label: string; color: string } {
-      if (t >= 60) return { label: "เร็วทันใจ", color: "var(--color-can-run)" }
-      if (t >= 30) return { label: "ลื่น", color: "var(--color-can-run)" }
-      if (t >= 15) return { label: "สบายๆ", color: "var(--color-maybe)" }
-      if (t >= 5) return { label: "ช้า", color: "var(--color-maybe)" }
-      return { label: "ทรมาน", color: "var(--color-cannot-run)" }
+      if (t >= 60) return { label: I18N.speedTiers.fast, color: "var(--color-can-run)" }
+      if (t >= 30) return { label: I18N.speedTiers.smooth, color: "var(--color-can-run)" }
+      if (t >= 15) return { label: I18N.speedTiers.ok, color: "var(--color-maybe)" }
+      if (t >= 5) return { label: I18N.speedTiers.slow, color: "var(--color-maybe)" }
+      return { label: I18N.speedTiers.painful, color: "var(--color-cannot-run)" }
     }
 
     function ensurePopup() {
@@ -1700,12 +1758,13 @@ function useCaseLabel(uses: string[]): string {
       const animate = (now: number) => {
         if (activeTrigger !== trigger || !textEl) return
         const elapsed = now - start
+        const sample = I18N.speedSample
         const chars = Math.min(
-          SAMPLE.length,
+          sample.length,
           Math.floor((elapsed / 1000) * charsPerSec),
         )
-        textEl.textContent = SAMPLE.slice(0, chars)
-        if (chars < SAMPLE.length) {
+        textEl.textContent = sample.slice(0, chars)
+        if (chars < sample.length) {
           rafId = requestAnimationFrame(animate)
         } else {
           rafId = null
@@ -1765,6 +1824,8 @@ function useCaseLabel(uses: string[]): string {
 
   document.addEventListener("astro:page-load", () => {
     if (!$("#models-grid")) return
+
+    loadI18n()
 
     activeStatusFilter = "all"
     activeUseFilter = "all"

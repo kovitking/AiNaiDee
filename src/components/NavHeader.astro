@@ -1,19 +1,38 @@
 ---
 import Logo from "@/icons/logo.svg";
+import { getRelativeLocaleUrl } from "astro:i18n";
+import { useTranslations, type Lang } from "@/i18n/ui";
+
+interface Props {
+  lang?: Lang;
+  hasTranslation?: boolean;
+}
+
+const { lang = (Astro.currentLocale as Lang) ?? "th", hasTranslation = false } = Astro.props;
+const t = useTranslations(lang);
+
 const currentPath = Astro.url.pathname;
 const buildDate = new Date();
 
 const links = [
-  { href: "/playground", label: "Playground" },
-  { href: "/compare", label: "เปรียบเทียบ" },
-  { href: "/tier", label: "อันดับโมเดล" },
-  { href: "/docs", label: "คู่มือ" },
-  { href: "/why", label: "ทำไม" },
+  { href: "/playground", label: t("nav.playground") },
+  { href: "/compare", label: t("nav.compare") },
+  { href: "/tier", label: t("nav.tier") },
+  { href: "/docs", label: t("nav.docs") },
+  { href: "/why", label: t("nav.why") },
   // Points at the in-repo /blog route for now. Once Caddy maps
   // blog.ainaidee.com -> app:4321/blog/* (see docs/blog-architecture.md),
   // this should become an absolute link to the subdomain instead.
-  { href: "/blog", label: "บล็อก" },
+  { href: "/blog", label: t("nav.blog") },
 ];
+
+const otherLang: Lang = lang === "th" ? "en" : "th";
+const pathWithoutLocale = lang === "en"
+  ? currentPath.replace(/^\/en\/?/, "/")
+  : currentPath;
+const switchHref = hasTranslation
+  ? getRelativeLocaleUrl(otherLang, pathWithoutLocale.replace(/^\//, ""))
+  : null;
 ---
 
 <nav class="border-b border-edge/40">
@@ -23,7 +42,7 @@ const links = [
         <Logo class="size-3" />
         AiNaiDee
       </a>
-      <time id="build-time" class="font-mono text-xs text-primary/40" datetime={buildDate.toISOString()}>
+      <time id="build-time" class="font-mono text-xs text-primary/40" datetime={buildDate.toISOString()} data-lang={lang}>
         updated ...
       </time>
     </div>
@@ -42,13 +61,22 @@ const links = [
             [{label}]
           </a>
         ))}
+        {switchHref && (
+          <a
+            href={switchHref}
+            class="transition-colors text-primary/70 hover:text-accent"
+            aria-label={t("nav.switchLang")}
+          >
+            [{t("nav.switchLang")}]
+          </a>
+        )}
       </div>
 
       {/* Mobile hamburger */}
       <button
         id="menu-toggle"
         class="flex size-8 items-center justify-center text-primary/70 transition-colors hover:text-accent sm:hidden"
-        aria-label="Open menu"
+        aria-label={t("nav.openMenu")}
         aria-expanded="false"
       >
         <svg class="size-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
@@ -76,7 +104,7 @@ const links = [
     <button
       id="menu-close"
       class="flex size-8 items-center justify-center text-primary/70 transition-colors hover:text-accent"
-      aria-label="Close menu"
+      aria-label={t("nav.closeMenu")}
     >
       <svg class="size-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
         <line x1="4" y1="4" x2="16" y2="16" />
@@ -97,6 +125,14 @@ const links = [
         [{label}]
       </a>
     ))}
+    {switchHref && (
+      <a
+        href={switchHref}
+        class="mobile-menu-link font-mono text-2xl transition-colors text-primary/70 hover:text-accent"
+      >
+        [{t("nav.switchLang")}]
+      </a>
+    )}
   </div>
 
 </div>
@@ -144,6 +180,11 @@ const links = [
     });
   }
 
+  const BUILD_TIME_LABELS = {
+    th: { just: "เมื่อครู่นี้", min: "นาทีที่แล้ว", hr: "ชม.ที่แล้ว", day: "วันที่แล้ว", updated: "อัปเดต" },
+    en: { just: "just now", min: "min ago", hr: "hr ago", day: "days ago", updated: "Updated" },
+  };
+
   function updateBuildTime() {
     const el = document.getElementById("build-time") as HTMLTimeElement | null;
     if (!el) return;
@@ -151,18 +192,21 @@ const links = [
     const buildISO = el.getAttribute("datetime");
     if (!buildISO) return;
 
+    const lang = el.dataset.lang === "en" ? "en" : "th";
+    const labels = BUILD_TIME_LABELS[lang];
+
     const diffMs = Date.now() - new Date(buildISO).getTime();
     const mins = Math.floor(diffMs / 60_000);
     const hours = Math.floor(diffMs / 3_600_000);
     const days = Math.floor(diffMs / 86_400_000);
 
     let relative: string;
-    if (days > 0) relative = `${days} วันที่แล้ว`;
-    else if (hours > 0) relative = `${hours} ชม.ที่แล้ว`;
-    else if (mins > 0) relative = `${mins} นาทีที่แล้ว`;
-    else relative = "เมื่อครู่นี้";
+    if (days > 0) relative = `${days} ${labels.day}`;
+    else if (hours > 0) relative = `${hours} ${labels.hr}`;
+    else if (mins > 0) relative = `${mins} ${labels.min}`;
+    else relative = labels.just;
 
-    el.textContent = `อัปเดต ${relative}`;
+    el.textContent = `${labels.updated} ${relative}`;
   }
 
   document.addEventListener("astro:page-load", () => {
