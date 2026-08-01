@@ -22,3 +22,6 @@ pnpm-debug.log*
 .idea/
 .vercel
 .env*.local
+
+# local agent settings
+.claude/settings.local.json
