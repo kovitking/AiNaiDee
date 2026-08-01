@@ -51,6 +51,10 @@ services:
       # public URL Ghost redirects /ghost to blog.ainaidee.com, where it is
       # deliberately unreachable.
       admin__url: ${GHOST_ADMIN_URL:-http://localhost:2368}
+      # No SMTP is configured, and staff logins otherwise require an emailed
+      # 2FA code — which can never arrive. Admin access is already gated by
+      # SSH; re-enable this if real mail transport is ever set up.
+      security__staffDeviceVerification: "false"
       database__client: mysql
       database__connection__host: ghost-db
       database__connection__user: ghost
