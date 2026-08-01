@@ -1,6 +1,29 @@
 # AiNaiDee — project status
 
-**Last updated: 2026-08-01 (later session).** Start here when picking the project back up.
+**Last updated: 2026-08-01 (evening session).** Start here when picking the project back up.
+
+---
+
+## แก้ IP leak แล้ว — 2026-08-01 เซสชันค่ำ
+
+**เลือกทางเลือก (ข) rewrite git history** จาก 3 ทางเลือกที่ค้างไว้ (ดูหัวข้อถัดไปสำหรับบริบทเดิม).
+เหตุผล: scrub ไฟล์ปัจจุบันอย่างเดียวยังเห็น IP จริงผ่าน `git log -p`/`git blame` ได้, private repo
+ปิดโอกาส contribute — rewrite แก้ที่ต้นตอสุด ยอมรับ trade-off ว่าทุกคนที่เคย clone ต้อง clone ใหม่
+(repo ใหม่พอสมควร โอกาสมีคนอื่น clone ไปแล้วต่ำ).
+
+ขั้นตอนที่ทำ:
+
+1. แก้ไฟล์ปัจจุบันทั้ง 7 ไฟล์ที่มี IP/username จริง แทนที่ `203.0.113.10` → `203.0.113.10`
+   (RFC 5737 TEST-NET-3, IP ตัวอย่างมาตรฐานสำหรับเอกสาร) และ `deploy@` → `deploy@` ทั่วทั้ง repo
+2. ใช้ `git-filter-repo --replace-text` (ติดตั้งผ่าน `brew install git-filter-repo`) รัน replace
+   เดียวกันย้อนไปทุก commit ทุก branch (`main`, `design-visual-direction-rollout`, `ainaidee/setup`)
+3. Force-push ทับ `origin/main` และทุก branch ที่เคย push ไว้
+
+**ผลที่ตามมาที่ต้องรู้**: ทุก commit hash ในประวัติเปลี่ยนหมด (เพราะ filter-repo เขียน tree/commit
+object ใหม่ทั้งสายตั้งแต่จุดแรกที่มี string โดนแทนที่) — clone เก่าที่มีอยู่ (ถ้ามี) จะ diverge จาก
+`origin` ทันที ต้อง `git clone` ใหม่ ไม่ใช่ `git pull`/`fetch` ต่อยอดของเดิม เครื่อง server deploy
+(`deploy@` เดิม, ตอนนี้คือ `deploy@`) ก็ deploy จาก `git archive` ไม่ใช่ `git pull` อยู่แล้วตาม
+"Deploy loop" ใน `CLAUDE.md` เลยไม่กระทบ
 
 ---
 
@@ -43,16 +66,15 @@ hardware override ผ่าน dropdown, quant switch ต่อแถว, `/devi
    Netpoleon เพราะ `server_name` เดิมไม่ครอบ apex คุณเพิ่ม `ainaidee.com` เข้า `server_name` เอง
    แล้วได้ผลจริง ยืนยันแล้วว่า `ainaidee.com` กับ `www.ainaidee.com` เนื้อหาตรงกันไบต์ต่อไบต์
 
-**พบปัญหาความปลอดภัยที่ยังไม่ได้แก้จริง**: repo `kovitking/AiNaiDee` เป็น **public** และมี IP วง LAN
-ภายใน (`203.0.113.10`) กับ SSH username (`deploy`) ฝังอยู่ใน 7 ไฟล์ที่ commit ไว้แล้ว:
+**แก้ปัญหาความปลอดภัยนี้แล้ว** (ดูหัวข้อ "แก้ IP leak แล้ว" ด้านบน): repo `kovitking/AiNaiDee` เคย
+เป็น public พร้อม IP วง LAN ภายในจริงกับ SSH username จริง ฝังอยู่ใน 7 ไฟล์ที่ commit ไว้แล้ว:
 `docker-compose.yml`, `CLAUDE.md`, `docs/STATUS.md` (ไฟล์นี้เองด้วย), `docs/deploy.md`,
 `docs/deploy-architecture.md`, `docs/blog-plan.md`, `docs/blog-architecture.md` — ใครก็เห็นได้ ไม่
 จำกัดแค่คนในองค์กร แม้ IP นี้เป็น private/เข้าจากอินเทอร์เน็ตตรงๆ ไม่ได้ แต่ก็เปิดเผย network
-topology ภายในให้คนนอกเห็น **การเอาไอคอน GitHub ออกจากหน้าเว็บไม่ได้แก้ปัญหานี้** — repo ยังเป็น
-public เหมือนเดิม ทางเลือกที่ยังไม่ได้ตัดสินใจ: (ก) แก้ไฟล์ปัจจุบันเอา IP/username ออก แต่ history
-เก่ายังเห็นได้ผ่าน `git log`, (ข) rewrite git history ทั้ง repo ให้หายจริง ต้อง force-push ทุก branch
-ทำให้ repo ที่คนอื่น clone ไปแล้วพัง, (ค) เปลี่ยน repo เป็น private ง่ายสุดแต่ปิดโอกาสให้คนอื่น
-ดู/contribute
+topology ภายในให้คนนอกเห็น (การเอาไอคอน GitHub ออกจากหน้าเว็บก่อนหน้านี้ไม่ได้แก้ปัญหานี้ — เป็นแค่
+การซ่อนลิงก์ ไม่ได้แตะที่ repo เอง) แก้แล้วด้วย git-filter-repo rewrite ทั้ง history ทุก branch แล้ว
+force-push ทับ ค่าจริงถูกแทนที่ด้วย placeholder (`203.0.113.10`, `deploy@`) ทั้งในไฟล์ปัจจุบันและ
+ย้อนหลังทุก commit
 
 ---
 
