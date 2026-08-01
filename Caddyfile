@@ -20,10 +20,18 @@
 
 	@blog_host host blog.ainaidee.com
 	handle @blog_host {
-		# Ghost admin (/ghost*) is intentionally NOT routed here — see the
-		# `ghost` service in docker-compose.yml. First-time setup and ongoing
-		# admin use go through an SSH tunnel to 127.0.0.1:2368, never through
-		# this subdomain.
+		# Ghost admin and uploaded media go to the ghost container. Imperva
+		# terminates TLS and forwards plain HTTP, so X-Forwarded-Proto must be
+		# forced to https here — otherwise Ghost marks its session cookie
+		# Secure-for-an-http-origin and admin login silently fails with 403s.
+		# Edge protection for /ghost* (Imperva Login Protect) lives on the
+		# Imperva side, not here.
+		@ghost path /ghost /ghost/* /content/*
+		handle @ghost {
+			reverse_proxy ghost:2368 {
+				header_up X-Forwarded-Proto https
+			}
+		}
 
 		# src/pages/blog/* renders under /blog on the app, but the rendered
 		# pages themselves link and load assets with root-relative paths that
