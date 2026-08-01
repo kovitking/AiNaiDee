@@ -30,27 +30,10 @@ const ogImageURL = new URL(image, Astro.site);
 
     <title>{title}</title>
     <meta name="description" content={description} />
-    <meta name="theme-color" content="#08080a" />
+    <meta name="theme-color" content="#17162b" />
     <meta name="robots" content="index, follow" />
     <meta name="author" content="midudev" />
     <meta name="generator" content={Astro.generator} />
-
-    <script is:inline>
-      (function(){
-        function applyTheme(){
-          var t=localStorage.getItem("theme");
-          if(t==="light"||(!t&&matchMedia("(prefers-color-scheme: light)").matches)){
-            document.documentElement.classList.add("light");
-            document.querySelector('meta[name="theme-color"]').setAttribute("content","#ffffff");
-          } else {
-            document.documentElement.classList.remove("light");
-            document.querySelector('meta[name="theme-color"]').setAttribute("content","#08080a");
-          }
-        }
-        applyTheme();
-        document.addEventListener("astro:after-swap",applyTheme);
-      })();
-    </script>
 
     <meta property="og:type" content={type} />
     <meta property="og:url" content={canonicalURL.href} />
