@@ -1,6 +1,69 @@
 # AiNaiDee — project status
 
-**Last updated: 2026-08-01 (evening session).** Start here when picking the project back up.
+**Last updated: 2026-08-01 (night session).** Start here when picking the project back up.
+
+---
+
+## เว็บสองภาษาแล้ว (infra + หน้าแรก) — 2026-08-01 เซสชันดึก
+
+**หน้าแรกเป็นสองภาษาจริงแล้ว**: `/` = ไทย (default, ไม่มี prefix), `/en/` = อังกฤษ, สลับได้ผ่านปุ่ม
+`[English]`/`[ไทย]` ใน nav (บนสุดขวา, ทั้ง desktop และ mobile menu) เลือกแนวทาง Astro native i18n
+routing + dictionary object ต่อ component (ไม่ใช่ client-side toggle เพราะ SEO แย่กว่า, ไม่ใช่
+duplicate ไฟล์เต็มเพราะโค้ดซ้ำเยอะเกิน) คุณเลือกให้ไทยเป็น default ไม่มี `/th/` prefix เพราะเน้น
+คนไทยเป็นหลักแต่อยากได้ traffic ต่างประเทศด้วย
+
+**ขอบเขตรอบนี้ (ตั้งใจทำแค่ pilot)**: infra (i18n config, dictionary, language switcher) + หน้าแรก
+เต็มรูปแบบ (`index.astro`, `NavHeader`, `Footer`, `ModelListContent` ทั้งไฟล์ 2,269 บรรทัด ทั้ง
+template และ inline `<script>`) — หน้าอื่นทั้งหมด (`why`, `compare`, `tier`, `docs`, `license/*`,
+`blog/*`, `model/[id]`, `device/[id]`, playground UI) **ยังไม่แตะ** ยังเป็นแบบเดิมทุกอย่าง (ส่วนใหญ่
+ไทยแล้วจาก session ก่อน ยกเว้นหน้าที่ระบุไว้ใน CLAUDE.md ว่ายังไม่แปล) — ทำต่อ session หน้าได้เลย
+โดยใช้ pattern เดียวกัน (ดู "ไฟล์ที่เกี่ยวข้อง" ด้านล่าง)
+
+ไฟล์ใหม่/แก้ที่สำคัญ:
+
+- `astro.config.mjs` — เพิ่ม `i18n` block (`defaultLocale: 'th'`, `locales: ['th','en']`,
+  `prefixDefaultLocale: false`) และ `sitemap()` i18n options (ให้ sitemap ออก `hreflang` alternate
+  คู่ `/` กับ `/en/` อัตโนมัติ — ตรวจแล้วว่าคู่อื่นไม่ได้ alternate มั่วเพราะยังไม่มีคู่อื่นจริง)
+- `src/i18n/ui.ts` (ใหม่) — dictionary หลัก `ui.th.*` / `ui.en.*` แบ่ง namespace ตาม component
+  (`nav`, `footer`, `home`, `modelList`) + `useTranslations(lang)` helper คืนฟังก์ชัน `t(key)`
+  แบบ dotted-path พร้อม fallback กลับไทยถ้า key หาย
+- `src/i18n/useCases.ts` (ใหม่) — ย้าย `USE_CASE_TH` เดิมมาเป็น `USE_CASE_LABELS.th`/`.en` +
+  `useCaseLabel()` **หมายเหตุ**: `src/pages/design.astro` (หน้า demo เก่าที่ไม่ใช้แล้ว) ยังมี
+  `USE_CASE_TH` สำเนาของตัวเองแยกอยู่ ตั้งใจไม่แตะเพราะหน้านั้น stale อยู่แล้ว
+- `src/layouts/Layout.astro` — `lang`/`locale` prop เปลี่ยนจาก hardcode `"en"` เป็น derive จาก
+  `Astro.currentLocale` (fallback `"th"`) ผลข้างเคียงที่ตั้งใจ: หน้าที่ยังไม่แปล (why/compare/ฯลฯ)
+  เคยส่ง `<html lang="en">` ทั้งที่เนื้อหาเป็นไทยมาตลอด ตอนนี้ถูกต้องแล้วโดยไม่ต้องแตะเนื้อหาเลย
+  เพิ่ม `hasTranslation` prop คุม `hreflang` link (th/en/x-default) — false เป็นค่าเริ่มต้น มีแค่
+  `/` กับ `/en/` ที่ส่ง `true`
+- `src/components/NavHeader.astro` / `Footer.astro` — เพิ่ม `lang` prop, ดึงข้อความผ่าน `t()`,
+  NavHeader เพิ่ม language switcher (คำนวณ URL ด้วย `astro:i18n`'s `getRelativeLocaleUrl`) ที่โชว์
+  เฉพาะหน้าที่ `hasTranslation` เป็น true เท่านั้น (กันไม่ให้กดแล้วไป 404)
+- `src/components/ModelListContent.astro` — แปลครบทั้งไฟล์ ~162 string ใน template +
+  ~19 string ใน inline script เจอบั๊กเดิม 2 ตัวระหว่างทาง แก้ไปด้วย: (1) tooltip RAM ระบบฝั่ง
+  non-Apple เคยลืมแปลเป็นไทยตั้งแต่รอบแปลก่อน (มันเป็นอังกฤษอยู่แม้บนหน้าไทย), (2) badge ดาว
+  "ยอดนิยม" ไม่เคย render เลยเพราะ JSX tag พัง (`<i ... title="ยอดนิยม"` ขาด `>` ปิด ทำให้
+  `<IconStar>` โดนกลืนเป็น attribute แทนที่จะเป็น element) — แก้ทั้งคู่แล้ว ยืนยันด้วยสกรีนช็อตว่า
+  badge ดาวโชว์ถูกต้องทั้งสองภาษา
+- `src/pages/index.astro` — ส่ง `lang="th"` + `hasTranslation={true}` ชัดเจนแทนการพึ่ง default
+- `src/pages/en/index.astro` (ใหม่) — หน้า `/en/` เอง English hero copy กู้คืนจาก git history
+  commit `4e5fa9f` (ก่อนแปลไทยรอบแรก, branding ถูกต้องอยู่แล้วไม่ต้องแก้)
+
+**บั๊กที่เจอระหว่าง verify ในเบราว์เซอร์จริง (ไม่ใช่แค่ build ผ่าน)**: ตอนแรก inline `<script>` ใน
+`ModelListContent.astro` อ่าน `data-i18n` JSON แค่ครั้งเดียวตอน module โหลด (`const I18N = ...`
+ที่ top level) — ใช้งานได้ตอนโหลดหน้าตรงๆ แต่พอกด switcher เปลี่ยนภาษาผ่าน Astro ClientRouter
+(SPA-style view transition) สคริปต์ตัวเดิมไม่ได้ reload ใหม่ ค่า label เกรด/tooltip เลยค้างเป็น
+ภาษาเดิม (เช่น กด `/` → `/en/` แล้ว badge เกรดยังโชว์ "พอใช้" แทน "OK") แก้โดยย้าย parsing เข้าไปใน
+`astro:page-load` handler ที่มีอยู่แล้ว (re-run ทุกครั้งที่เปลี่ยนหน้าแบบ SPA) เปลี่ยน `I18N`/`GRADES`
+จาก `const` เป็น `let` ที่ reassign ใหม่ทุกรอบ — ยืนยันแก้แล้วด้วยการกด switcher สลับไปมาจริงในเบราว์เซอร์
+**บทเรียนสำหรับหน้าอื่นที่จะทำต่อ**: ถ้าหน้าไหนมี inline script ที่ต้องรู้ภาษา ต้องเช็ค pattern นี้ด้วย
+ไม่ใช่แค่เช็คว่า build ผ่าน/หน้าแรกโหลดถูก
+
+ยืนยันแล้ว: `pnpm build` สำเร็จ, `dist/client/en/index.html` ถูกสร้างจริง, sitemap มี `hreflang`
+alternate คู่ `/` กับ `/en/` ถูกต้อง (หน้าอื่นไม่มี alternate มั่ว), `pnpm packages:typecheck` และ
+`pnpm test` (200 tests) ผ่านหมด, เปิดเบราว์เซอร์จริงทดสอบ hardware detection (Apple M4) ทั้งสองภาษา
+กด switcher สลับไปมาทั้งสองทิศทาง เนื้อหาถูกต้องครบ (nav, footer, hero, hardware panel, grade
+summary, model rows, ปุ่ม/tooltip แบบ dynamic ที่มาจาก script) ตรวจ `/why` (หน้าที่ไม่ได้แตะ) ว่ายัง
+ทำงานปกติและไม่มี switcher โผล่มา (ตามที่ตั้งใจ)
 
 ---
 
@@ -318,14 +381,22 @@ both GET and POST API routes all respond. Also verified against a *minimal* tree
 
 ## Next up, roughly in order
 
-1. **Decide + act on the internal-IP leak** in the public repo (see "Blocked on you" #1).
-2. **Finish Thai localization**: `why.astro`, `compare.astro`, `tier.astro`, `docs.astro`,
-   `license/[id].astro`, `blog/index.astro` + `blog/[slug].astro` chrome, `model/[id].astro`,
-   `device/[id].astro`, and the playground chat UI's own microcopy (New chat, Search chats,
-   Settings panel, model picker, etc.) all still render in English. Keep the established pattern:
-   technical terms (GPU, VRAM, RAM, WebGPU, grade letters, quant codes, MoE) stay English; reuse
-   the `USE_CASE_TH` map now duplicated in both `design.astro` and `ModelListContent.astro` for
-   task-category labels instead of inventing new translations.
+1. **Decide + act on the internal-IP leak** in the public repo (see "Blocked on you" #1). ~~Resolved
+   2026-08-01: git history rewritten with `git-filter-repo`, real IP/SSH-username replaced with
+   placeholders everywhere, force-pushed to `origin`.~~
+2. **Extend bilingual support to the rest of the site**: `/` and `/en/` are done (home page, nav,
+   footer — see "เว็บสองภาษาแล้ว" above for the pattern: `src/i18n/ui.ts` dictionary +
+   `useTranslations(lang)` + a thin `src/pages/en/<page>.astro` wrapper per page). Still
+   English-or-Thai-only, not yet bilingual: `why.astro`, `compare.astro`, `tier.astro`,
+   `docs.astro`, `license/[id].astro`, `blog/index.astro` + `blog/[slug].astro` chrome,
+   `model/[id].astro`, `device/[id].astro`, and the playground chat UI's own microcopy (New chat,
+   Search chats, Settings panel, model picker, etc). Keep the established convention: technical
+   terms (GPU, VRAM, RAM, WebGPU, grade letters, quant codes, MoE) stay English in both locales;
+   reuse `src/i18n/useCases.ts`'s `USE_CASE_LABELS`/`useCaseLabel()` for task-category labels
+   instead of inventing new translations. **Watch for the inline-`<script>` staleness bug** documented
+   above — any page whose client-side script needs locale-aware strings must re-read them inside
+   the `astro:page-load` handler, not at module top-level, or they'll go stale after a SPA
+   navigation between locales.
 3. Add Thai/SEA models: Typhoon, OpenThaiGPT, SeaLLM, WangchanX. One entry each in
    `packages/models/src/index.ts`; quantisation sizes derive automatically from the parameter count.
 4. The fine-tuning / LoRA feasibility mode from `idea.md` — "can my machine *train* this?", which

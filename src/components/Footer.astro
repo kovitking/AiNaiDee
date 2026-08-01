@@ -1,15 +1,19 @@
 ---
+import { useTranslations, type Lang } from "@/i18n/ui";
+
 interface Props {
   class?: string;
+  lang?: Lang;
 }
 
-const { class: className = "mt-16" } = Astro.props;
+const { class: className = "mt-16", lang = (Astro.currentLocale as Lang) ?? "th" } = Astro.props;
+const t = useTranslations(lang);
 const hasSlot = Astro.slots.has("default");
 ---
 
 <footer class:list={["text-center", className]}>
   <p class="text-sm text-primary inline-flex flex-wrap items-center justify-center gap-1">
-    AiNaiDee สร้างต่อยอดจาก <a href="https://canirun.ai" target="_blank" rel="noopener" class="text-primary underline decoration-edge underline-offset-2 hover:text-accent">canirun.ai</a> โดย <a href="https://midu.dev" target="_blank" rel="noopener" class="text-primary underline decoration-edge underline-offset-2 hover:text-accent">midudev</a>
+    {t("footer.forkNotice")} <a href="https://canirun.ai" target="_blank" rel="noopener" class="text-primary underline decoration-edge underline-offset-2 hover:text-accent">canirun.ai</a> {t("footer.by")} <a href="https://midu.dev" target="_blank" rel="noopener" class="text-primary underline decoration-edge underline-offset-2 hover:text-accent">midudev</a>
     <svg width="13" height="12" viewBox="0 0 13 12" fill="none" xmlns="http://www.w3.org/2000/svg" class="inline-block" aria-hidden="true">
       <rect x="2" y="0" width="3" height="1" fill="#ef4444"/>
       <rect x="8" y="0" width="3" height="1" fill="#ef4444"/>
@@ -34,8 +38,6 @@ const hasSlot = Astro.slots.has("default");
   )}
 
   <p class="mt-2 text-[13px] text-muted/70 max-w-xl mx-auto leading-relaxed">
-    ชื่อผลิตภัณฑ์ โลโก้ และแบรนด์ทั้งหมดเป็นทรัพย์สินของเจ้าของแต่ละราย Apple, NVIDIA, AMD,
-    Intel, Qualcomm และชื่อโมเดล AI ทั้งหมดที่กล่าวถึงในเว็บนี้เป็นเครื่องหมายการค้าของเจ้าของ
-    นั้นๆ เว็บนี้ไม่มีความเกี่ยวข้องหรือได้รับการรับรองจากบริษัทเหล่านี้แต่อย่างใด
+    {t("footer.trademarkNotice")}
   </p>
 </footer>

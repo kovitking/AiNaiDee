@@ -12,7 +12,24 @@ const site = process.env.SITE_URL || 'https://ainaidee.com';
 export default defineConfig({
   site,
   adapter: node({ mode: 'standalone' }),
-  integrations: [sitemap()],
+  i18n: {
+    defaultLocale: 'th',
+    locales: ['th', 'en'],
+    routing: {
+      prefixDefaultLocale: false,
+    },
+  },
+  integrations: [
+    sitemap({
+      i18n: {
+        defaultLocale: 'th',
+        locales: {
+          th: 'th-TH',
+          en: 'en-US',
+        },
+      },
+    }),
+  ],
   vite: {
     plugins: [tailwindcss()],
     worker: {

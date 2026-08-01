@@ -1,5 +1,6 @@
 ---
 import { ClientRouter } from "astro:transitions";
+import { getRelativeLocaleUrl } from "astro:i18n";
 import "@/styles/global.css";
 
 interface Props {
@@ -9,19 +10,37 @@ interface Props {
   type?: string;
   lang?: string;
   locale?: string;
+  hasTranslation?: boolean;
 }
+
+const currentLocale = (Astro.currentLocale as "th" | "en" | undefined) ?? "th";
 
 const {
   title = "AiNaiDee — เครื่องคุณรัน AI ตัวไหนได้บ้าง?",
   description = "ตรวจฮาร์ดแวร์ของคุณและดูว่ารันโมเดล AI ตัวไหนได้บ้าง วิเคราะห์ GPU, CPU และ RAM ในเบราว์เซอร์",
   image = "/og/home.jpg",
   type = "website",
-  lang = "en",
-  locale = "en_US",
+  lang = currentLocale,
+  locale = currentLocale === "en" ? "en_US" : "th_TH",
+  hasTranslation = false,
 } = Astro.props;
 
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
 const ogImageURL = new URL(image, Astro.site);
+
+// Only pages that actually have a translated counterpart (the home page,
+// this pilot round) get hreflang alternates — everything else would point
+// at a 404 under /en/.
+const pathWithoutLocale = currentLocale === "en"
+  ? Astro.url.pathname.replace(/^\/en\/?/, "/")
+  : Astro.url.pathname;
+const strippedForUrl = pathWithoutLocale.replace(/^\//, "");
+const thAlternateURL = hasTranslation
+  ? new URL(getRelativeLocaleUrl("th", strippedForUrl), Astro.site)
+  : null;
+const enAlternateURL = hasTranslation
+  ? new URL(getRelativeLocaleUrl("en", strippedForUrl), Astro.site)
+  : null;
 ---
 
 <!doctype html>
@@ -31,6 +50,13 @@ const ogImageURL = new URL(image, Astro.site);
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="canonical" href={canonicalURL.href} />
+    {hasTranslation && thAlternateURL && enAlternateURL && (
+      <>
+        <link rel="alternate" hreflang="th" href={thAlternateURL.href} />
+        <link rel="alternate" hreflang="en" href={enAlternateURL.href} />
+        <link rel="alternate" hreflang="x-default" href={thAlternateURL.href} />
+      </>
+    )}
 
     <title>{title}</title>
     <meta name="description" content={description} />

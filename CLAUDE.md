@@ -14,10 +14,15 @@ Fork goals are recorded in `docs/idea.md` and `docs/draft-plan.md` (Thai): add T
 alongside the existing inference-only check, localize the UI to Thai, and add a blog. The `/design`
 direction has been applied to the real home page (`ModelListContent.astro` rewritten on its
 row+ruler layout, `src/styles/global.css` re-themed site-wide) and deployed — see "Rebranding still
-to do" for what's left. Thai localization is **partial**: the home page, `NavHeader`, `Footer`, and
-`playground.astro`'s welcome copy are translated (technical terms kept in English — GPU, VRAM, RAM,
-WebGPU, grade letters, quant codes, MoE); `why`/`compare`/`tier`/`docs`/`license`/`blog` pages,
-`model/[id]`/`device/[id]`, and the playground chat UI's own microcopy are still English.
+to do" for what's left. The site is now genuinely bilingual at the routing level (`/` Thai,
+`/en/` English — see "Bilingual routing" below) but only the home page actually has both: Thai
+localization elsewhere is still the **partial**, single-language state from before that routing
+existed — `NavHeader`, `Footer`, and `playground.astro`'s welcome copy are Thai-only (technical
+terms kept in English — GPU, VRAM, RAM, WebGPU, grade letters, quant codes, MoE);
+`why`/`compare`/`tier`/`docs`/`license`/`blog` pages, `model/[id]`/`device/[id]`, and the
+playground chat UI's own microcopy are English-only. Converting any of them to real bilingual pages
+means giving them an `/en/` (or filling in the Thai side) using the pattern in "Bilingual routing",
+not just adding more strings to one language.
 
 ## State of this checkout
 
@@ -225,6 +230,47 @@ marks its session cookie `Secure` and every authenticated request 403s). `staffD
 is disabled because no SMTP is configured, so the emailed 2FA code Ghost 6 requires at login can
 never arrive; re-enable it if SMTP is ever set up. Details in `docs/blog-plan.md` and
 `docs/blog-architecture.md`.
+
+### Bilingual routing — `/` is Thai, `/en/` is English
+
+`astro.config.mjs` sets `i18n: { defaultLocale: 'th', locales: ['th', 'en'], routing: {
+prefixDefaultLocale: false } }`, so Thai lives unprefixed at the site root and English is the one
+that gets a path prefix — the reverse of Astro's usual example. Astro's i18n config does not
+duplicate page content automatically: each bilingual page needs a real file per locale. The
+established pattern (currently only implemented for the home page — see `docs/STATUS.md` for what
+still needs converting) is:
+
+- **`src/i18n/ui.ts`** — the dictionary, `ui.th.<namespace>.<key>` / `ui.en.<namespace>.<key>`
+  (one namespace per component: `nav`, `footer`, `home`, `modelList`, …), plus
+  `useTranslations(lang)` returning a `t(dottedKey)` lookup that falls back to Thai on a missing
+  key. `src/i18n/useCases.ts` holds the model use-case label map (`USE_CASE_LABELS.th`/`.en` +
+  `useCaseLabel(uses, lang)`) separately, since it's keyed by the model catalog's internal tags
+  rather than UI copy. `src/pages/design.astro` (the stale standalone demo) keeps its own private,
+  un-migrated copy of the old `USE_CASE_TH` map on purpose — it's out of scope, don't wire it up.
+- A component that needs to render in either language takes a `lang?: Lang` prop (default `"th"`)
+  and calls `useTranslations(lang)` itself — see `NavHeader.astro`, `Footer.astro`,
+  `ModelListContent.astro`. The default matters: callers that don't know about i18n (e.g.
+  `device/[id].astro`'s `<ModelListContent deviceKey={slug}>`) must keep rendering Thai unchanged.
+- Each bilingual route is a real file per locale: `src/pages/index.astro` (Thai, passes
+  `lang="th"` explicitly) and `src/pages/en/index.astro` (a thin wrapper passing `lang="en"` and
+  English hero copy into the same shared components) — not one file branching on locale.
+- `Layout.astro` derives its `lang`/`locale` defaults from `Astro.currentLocale` (falls back to
+  `"th"` for locale-agnostic routes like `/api/*`) and only emits `hreflang` `<link>` alternates
+  (`th`/`en`/`x-default`, `x-default` pointing at the Thai root) when a page passes
+  `hasTranslation={true}` — omitted on every page that doesn't have a real translated counterpart
+  yet, so it never advertises a link that 404s. `NavHeader`'s language switcher uses the same
+  `hasTranslation` prop to decide whether to render at all, and computes the other-locale URL with
+  `astro:i18n`'s `getRelativeLocaleUrl`.
+- **Inline `<script>` blocks that need locale-aware text cannot just read it once at module load.**
+  Astro's `ClientRouter` (view transitions) keeps the same script module alive across client-side
+  navigations, so a `const` computed at the top of the script freezes to whichever language the
+  page happened to be on when the script first ran — switching from `/` to `/en/` would then leave
+  translated-looking UI still showing stale Thai (or vice versa) for anything that script touches.
+  `ModelListContent.astro`'s script hit exactly this: server-rendered strings translate correctly,
+  but grade labels and tooltips set by the script were still wrong until the fix. The pattern: pass
+  resolved strings from the server via a `data-i18n={JSON.stringify(...)}` attribute, then
+  re-`JSON.parse` it into a `let` (not `const`) inside the `astro:page-load` handler that already
+  re-runs on every SPA navigation — never at module top-level.
 
 ### Other pieces
 
