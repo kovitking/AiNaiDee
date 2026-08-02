@@ -44,6 +44,16 @@ This folder syncs over OneDrive between a Mac and a Windows box, so `node_module
 the wrong OS — Unix `.bin` shims with no `.cmd` wrappers, and contents that disagree with the
 lockfile. If anything looks impossible, delete `node_modules/` and reinstall.
 
+**This whole class of problem goes away once the working copy lives outside the OneDrive-synced
+tree on both machines**, using `git push`/`pull` between them instead of file-level sync — that's
+the recommended fix, not yet done. OneDrive sync has also caused outright I/O pathology unrelated to
+cross-OS `node_modules` contents (`pnpm test` measured at 28s instead of ~1.5s, `pnpm packages:build`
+hanging past 2 minutes at near-zero CPU) — build tools churning many small files fight the sync
+client for the same files. Selectively excluding subfolders like `node_modules`/`dist` from sync
+doesn't fix this (OneDrive's selective sync isn't granular below the top synced folder, and even if
+it were, the constant create/delete churn during a build would still fight the sync client);
+relocating the whole project directory out of any synced path is the real fix.
+
 `pnpm` is not on PATH on the Windows machine; `node`, `npm` and `corepack` are. Use `corepack pnpm`.
 Two consequences:
 
@@ -78,6 +88,16 @@ Package manager is **pnpm**, pinned to `11.1.3` via `packageManager`. Do not use
 | `pnpm packages:build` | compiles `packages/compatibility` + `packages/models` to `dist/`, ~1.5s (not `runai`) |
 
 Confirmed on Windows 2026-07-31: 200 tests / 7 files in 688ms, typecheck ~2s, build 30s.
+
+**Local iteration is `pnpm dev`, never Docker.** Docker exists in this project to throw the build
+toolchain (Node 24, pnpm, native `sharp`/`@resvg/resvg-js`) out of the runtime image at deploy time
+— it has nothing to do with day-to-day development, and it isn't installed on the dev Mac at all.
+`pnpm dev` reads package *source* directly and gives HMR in ~1s; that's the whole loop. If you ever
+need to sanity-check a production build before deploying, `pnpm build && node dist/server/entry.mjs`
+is enough — this was how the runtime image's minimal dependency footprint (`dist/` +
+`@libsql/client`) was originally verified, without Docker. The only place an actual `docker compose
+build` needs to happen is on the deploy server itself, as part of deploying — see "Deployment"
+below.
 
 Run a single test file or case:
 
@@ -345,19 +365,46 @@ Caddy). It sends `ainaidee.com`/`www` to `app:4321`, and splits `blog.ainaidee.c
 `ghost` container (`/ghost*`, `/content/*`) and `app:4321` (everything else, rewritten to `/blog*`).
 
 Origin box: `deploy@203.0.113.10` (Ubuntu 24.04.2, x86_64, 12 GB, Docker 29.3.0), source at
-`~/apps/ainaidee`, app container `ainaidee-app-1`, `restart: unless-stopped`. That box already runs
-~11 other demo containers on adjacent ports (8585, 8586) — check `docker ps` before claiming a
-port. **Do not assume `203.0.113.10:8587` reflects `main`** — it's the deploy target, updated only
-when someone deploys, same as any server.
+`~/apps/ainaidee` — as of 2026-08-02 this is a real `git clone`, not an extracted tarball, kept that
+way by every deploy re-cloning fresh (see below). App container `ainaidee-app-1`,
+`restart: unless-stopped`. That box already runs ~11 other demo containers on adjacent ports (8585,
+8586) — check `docker ps` before claiming a port. **Do not assume `203.0.113.10:8587` reflects
+`main`** — it's the deploy target, updated only when someone deploys, same as any server.
 
-Deploy loop: `git archive HEAD | ssh deploy@203.0.113.10 'tar -x -C ~/apps/ainaidee_new'` into a
-**fresh directory** (never `rsync`/scp over the live one — line-ending mismatches from this repo's
-Mac/Windows OneDrive sync make in-place diffs meaningless), copy `.env` over, swap the directory in
-(keep the old one as a timestamped backup, don't delete it), then
-`docker compose build app && docker compose up -d app`. `main` is pushed to `origin`
-(`github.com/kovitking/AiNaiDee`), but the server deploy is this manual archive-and-swap, not
-`git pull` — the box hasn't been given pull access to the repo. Switching to `git pull`-based
-deploys is an open option, not yet adopted (see `docs/STATUS.md`, "Blocked on you").
+Deploy loop, trigger from a dev machine: `scripts/deploy.sh` (reads `DEPLOY_USER`/`DEPLOY_HOST` from
+env or a gitignored `scripts/deploy.local.env` — see `scripts/deploy.local.env.example`; never
+hardcode the real host in a committed script, this repo is public). That SSHes in and runs
+`scripts/deploy-server.sh` **on the server**, which:
+
+1. `git clone`s `main` fresh into a staging directory — never touches the live one
+2. `docker compose build app` there
+3. smoke-tests the built image on an isolated port (`18587`, not the public one) — `/api/models` and
+   a `POST /api/compatibility` call must both succeed, or the script aborts here and the live site is
+   untouched
+4. only then: `mv`s the live directory aside as a timestamped backup, `mv`s staging into its place,
+   and `docker compose up -d app` — this touches only the `app` container; `caddy`/`ghost`/`ghost-db`
+   keep running the whole time
+
+Validated by hand on production 2026-08-02: **~23s of downtime**, every check passed. `.env` lives on
+the server, is gitignored, and is copied into each new staging clone before building — set once,
+carried forward every deploy, never touched by git.
+
+Roll back with `scripts/rollback.sh` (same `DEPLOY_USER`/`DEPLOY_HOST` config), which runs
+`scripts/rollback-server.sh` on the server. **This has one non-obvious requirement**: Compose derives
+the network name from the directory name, so bringing a backup checkout's containers up *in place*
+(without renaming that directory back to the live path first) starts a container Caddy can't
+reach — same expected network name, wrong directory, different Compose project underneath. The
+rollback script `mv`s the chosen backup directory back to the live path *before* running `docker
+compose build app && docker compose up -d app` — a mirror of the deploy script's swap, in reverse.
+
+This whole flow replaced an earlier manual `git archive | ssh ... tar -x` into a fresh directory,
+`.env` copied by hand each time, no smoke test before the swap — a workaround for two things that are
+both gone now: the repo wasn't pushed to GitHub yet at first deploy, and the local working tree used
+to pick up line-ending drift from Mac/Windows OneDrive sync, which made in-place `rsync`/scp diffs
+meaningless. Every deploy now clones straight from GitHub (public repo, no deploy key needed), never
+through a synced folder, and gets smoke-tested before it ever touches the live container. Staying on
+self-hosted Docker here (not moving to Vercel or another PaaS) is a settled decision, not open for
+reconsideration — the goal is making this loop better, not replacing it.
 
 `docs/deploy.md` and `docs/deploy-architecture.md` still describe an older phase-2-Caddy-behind-a-
 profile plan that is no longer how this works — Imperva replaced Caddy's TLS role entirely.
