@@ -76,21 +76,37 @@ still open:
    only `/api/runai/metrics` fails. If you want it on, put `TURSO_DATABASE_URL` and
    `TURSO_AUTH_TOKEN` in a `.env` file next to `docker-compose.yml` **on the server**. Do not
    paste those tokens into chat.
-5. **Deploy style going forward:** the repo is now on GitHub (`main`, pushed 2026-07-31), so
-   `git clone`/`git pull` on the server is possible. Phase 1 used `scp` because the repo wasn't
-   pushed yet at the time. Decide whether the server should pull from GitHub directly, or stay
-   on the current scp-then-build loop.
+5. ~~**Deploy style going forward**~~ — resolved and validated on production 2026-08-02 (~23s
+   downtime): the server now runs a clone-build-smoke-test-swap flow via `scripts/deploy-server.sh`.
+   See "Deploying" below.
 
-## Deploying (what actually ran for phase 1)
+## Deploying
 
 ```bash
-# from a machine with the repo, not on the server — the server didn't have git access to this
-# repo yet when phase 1 deployed. This can become `git clone` now that main is pushed.
-scp -r . deploy@203.0.113.10:~/apps/ainaidee/
-ssh deploy@203.0.113.10 "cd ~/apps/ainaidee && docker compose build"
-ssh deploy@203.0.113.10 "cd ~/apps/ainaidee && docker compose up -d"
-ssh deploy@203.0.113.10 "docker compose logs -f app"
+scripts/deploy.sh
+ssh "$DEPLOY_USER@$DEPLOY_HOST" "docker compose logs -f app"
 ```
+
+`scripts/deploy.sh` (run from a dev machine) reads `DEPLOY_USER`/`DEPLOY_HOST` from env or a
+gitignored `scripts/deploy.local.env` (copy `scripts/deploy.local.env.example` and fill in real
+values — never commit them, this repo is public and already had one IP leak) and SSHes in to run
+`scripts/deploy-server.sh`. That script, on the server:
+
+1. `git clone`s `main` fresh into a staging directory, leaving the live one untouched
+2. `docker compose build app` there
+3. smoke-tests the built image on an isolated port (`18587`) — `/api/models` and a
+   `POST /api/compatibility` call both have to succeed, or it aborts and the live site is never
+   touched
+4. only then swaps the staging directory in for the live one and restarts just the `app`
+   container — `caddy`/`ghost`/`ghost-db` are never touched
+
+`.env` lives on the server, is gitignored, and is copied into each fresh staging clone before
+building, so it survives every deploy without being touched by hand. No deploy key is needed — the
+repo is public.
+
+This replaced two earlier things in turn: phase 1's `scp`-then-build loop (existed only because the
+repo wasn't pushed to GitHub yet), and a brief `git reset --hard`-in-place version that had no smoke
+test before swapping traffic over.
 
 Then check it (no domain yet, so the bare IP:port):
 
@@ -105,18 +121,22 @@ curl -s -X POST http://203.0.113.10:8587/api/compatibility \
 Once phase 2 is enabled (Caddy + real domain), these become `https://ainaidee.com/...` and Caddy
 takes over TLS termination in front of the same `app` container.
 
-Updating later, with the current scp-based flow:
+Updating later:
 
 ```bash
-scp -r . deploy@203.0.113.10:~/apps/ainaidee/
-ssh deploy@203.0.113.10 "cd ~/apps/ainaidee && docker compose up -d --build && docker image prune -f"
+scripts/deploy.sh
 ```
 
-Or, once switched to git on the server:
+Rolling back:
 
 ```bash
-ssh deploy@203.0.113.10 "cd ~/apps/ainaidee && git pull && docker compose up -d --build && docker image prune -f"
+scripts/rollback.sh   # most recent backup, or pass a specific ainaidee_backup_* path
 ```
+
+`scripts/rollback.sh`/`scripts/rollback-server.sh` mirror the deploy swap in reverse: the backup
+directory has to be renamed back to the live path *before* `docker compose up` runs, because Compose
+derives the network name from the directory name — bringing a backup up in place, without that
+rename, starts a container Caddy can't reach.
 
 ## Gotchas
 

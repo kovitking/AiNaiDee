@@ -1,6 +1,55 @@
 # AiNaiDee — project status
 
-**Last updated: 2026-08-01 (night session, after deploy).** Start here when picking the project back up.
+**Last updated: 2026-08-02.** Start here when picking the project back up.
+
+---
+
+## Dev/deploy loop sped up — 2026-08-02
+
+Three separate speed problems, addressed separately (see `CLAUDE.md` "Commands"/"Deployment" for the
+lasting reference; this entry is just the changelog):
+
+1. **Local iteration never needed Docker** — `pnpm dev` (HMR, ready ~1s) was always the right loop;
+   Docker in this repo exists only to keep the build toolchain out of the runtime image, not for dev
+   isolation. Documented explicitly in `CLAUDE.md` so it doesn't get reached for by habit. No code
+   changed — the capability already existed.
+2. **Deploy loop replaced, cutover done on production**: the old 5-step manual `git archive | ssh
+   ... tar -x` → copy `.env` by hand → swap directory → `docker compose build/up` is gone. You ran
+   the new clone-build-smoke-test-swap flow by hand on the real server: **~23s of downtime, every
+   check passed.** `~/apps/ainaidee` is now a real `git clone`, kept that way by every future deploy
+   re-cloning fresh — not the old tarball checkout.
+
+   The scripts have been rewritten to match that validated flow exactly (`scripts/deploy-server.sh`:
+   clone into a staging dir → `docker compose build app` → smoke-test on an isolated port `18587`,
+   never the public one → only then swap directories and `docker compose up -d app`, touching nothing
+   else). Trigger from a dev machine with `scripts/deploy.sh`.
+
+   **Rollback bug found and fixed**: the first draft of `rollback-server.sh` just `cd`ed into the
+   backup directory and ran `docker compose up -d app` there — wrong, because Compose derives the
+   network name from the *directory* name. Running in place from a differently-named directory starts
+   a container on a different network than Caddy expects, so it comes up but Caddy can't reach it.
+   Fixed: rollback now `mv`s the backup directory back to the live path first, mirroring the deploy
+   swap in reverse, before rebuilding and starting it.
+
+   **Host/IP no longer lives in any committed script.** `scripts/deploy.sh`/`rollback.sh` (dev-machine
+   side, the ones that need to know where to SSH) read `DEPLOY_USER`/`DEPLOY_HOST` from env or a
+   gitignored `scripts/deploy.local.env` (template: `scripts/deploy.local.env.example`) — nothing
+   server-specific is hardcoded in a file that gets committed. `scripts/deploy-server.sh`/
+   `rollback-server.sh` (server side) never needed the server's own address to begin with. Given the
+   IP leak this repo already had once (see "แก้ IP leak แล้ว" below), new scripts don't get a pass on
+   this just because the value would "only" be the safe placeholder.
+
+   `docs/deploy.md` and this file's "Blocked on you" #5 updated to match. Old archive-based directory
+   kept as a timestamped backup on the server rather than deleted, per the new script's own behavior.
+
+   Self-hosted Docker on this same server is the settled choice going forward — not moving to Vercel
+   or another PaaS. This work was about making that loop better, not about re-opening that decision.
+3. **OneDrive I/O overhead** — separate root cause, not fixed by either of the above. Measured `pnpm
+   test` at 28s (normally ~1.5s) and `pnpm packages:build` hanging 2+ minutes at near-zero CPU, on
+   the Mac this time (previously only seen as a Windows issue). Recommended fix documented in
+   `CLAUDE.md`'s "Windows toolchain notes": move the working copy out of the OneDrive-synced tree on
+   both machines, use `git push`/`pull` between them instead of file sync. **Not yet done** — this is
+   a filesystem action on each machine, outside what a repo change can do.
 
 ---
 
@@ -394,9 +443,12 @@ both GET and POST API routes all respond. Also verified against a *minimal* tree
    `127.0.0.1:8587` instead.
 4. **Turso telemetry on or off?** Off by default; everything works without it. If on, put the
    tokens in `.env` **on the server** — do not paste them into chat.
-5. **Manual or automatic deploys?** Right now it's manual: `git archive HEAD` piped over SSH into a
-   fresh directory, swap it in, `docker compose build app && docker compose up -d app`. `git pull`
-   on the server is an option once you're comfortable giving that box pull access to the repo.
+5. ~~**Manual or automatic deploys?**~~ Resolved 2026-08-02: server now runs `scripts/deploy-server.sh`
+   — clones `main` fresh into a staging directory, builds and smoke-tests it on an isolated port, and
+   only then swaps it in for the live directory and restarts `app` (see "Dev/deploy loop sped up"
+   above for the full flow) — instead of the old archive-and-swap. Still triggered by hand from a dev
+   machine with `scripts/deploy.sh`, not on every push — full CI/CD auto-deploy is a deliberately
+   separate next step, once there's a test/build gate in front of it (see `CLAUDE.md`, "Deployment").
 6. **Continue the Thai localization to the rest of the site, or pause here?** See "Next up" below
    for exactly what's left.
 
