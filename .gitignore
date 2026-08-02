@@ -22,6 +22,9 @@ pnpm-debug.log*
 .env
 .env.production
 
+# real deploy target (host/user) — never commit this, see scripts/deploy.sh
+scripts/deploy.local.env
+
 # macOS-specific files
 .DS_Store
 
