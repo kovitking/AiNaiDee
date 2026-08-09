@@ -1,6 +1,92 @@
 # AiNaiDee — project status
 
-**Last updated: 2026-08-02.** Start here when picking the project back up.
+**Last updated: 2026-08-09.** Start here when picking the project back up.
+
+---
+
+## SEO pass — 2026-08-09
+
+STATUS.md previously said "SEO work for the rest of the site — still unstarted," which overstated
+the gap: per-page titles/descriptions, canonical URLs, OG/Twitter tags, and a configured sitemap
+(`@astrojs/sitemap`, `astro.config.mjs`) already covered every page. Audited before touching
+anything (see "What's next" below for what's genuinely still open); this pass covered three
+concrete gaps found during that audit, plus one bug:
+
+- **`public/robots.txt` pointed at the wrong domain** (`https://canirun.ai/sitemap-index.xml` —
+  a fork leftover the 2026-08-01 de-branding sweep missed, since it's a static file copied as-is
+  rather than built HTML). Replaced with `src/pages/robots.txt.ts`, a dynamic endpoint deriving the
+  sitemap URL from `Astro.site` — same "derive from `Astro.site`, never hardcode" convention already
+  used for JSON-LD/OG elsewhere in this repo, so it survives future `SITE_URL` changes automatically.
+- **`<html lang="th">` on 8 English-only templates.** `Layout.astro` always accepted a `lang`/`locale`
+  prop, these pages just never passed one, so they inherited the Thai default despite English visible
+  content: `why`, `compare`, `tier`, `docs`, `license/[id]`, `blog/index`, `blog/[slug]`,
+  `device/[id]`. Fixed by passing `lang="en" locale="en_US"` explicitly on each. **`playground.astro`
+  was deliberately left alone** — its title/description are genuinely Thai (per the localization
+  work already tracked below), so `lang="th"` there is correct, not a bug.
+- **JSON-LD added to the 7 templates that had none**: `why`/`docs` → `WebPage`/`DefinedTermSet`,
+  `compare`/`tier`/`playground` → `WebApplication` (matching the pattern home/model/device pages
+  already use), `license/[id]` → `WebPage` + `BreadcrumbList` (matching `model/[id]`'s `@graph`
+  pattern), `blog/index` → `Blog` with a `blogPost` list (skipped when no real posts are published
+  yet, so it doesn't emit an empty schema during the Ghost "coming soon" state).
+- **Per-page OG images for `tier`, `device/[id]`, `license/[id]`** — previously these silently fell
+  back to the homepage's share card, so sharing a license page or a device page looked identical to
+  sharing `/`. New satori endpoints: `src/pages/og/tier.jpg.ts` (static, S–F grade chips),
+  `src/pages/og/device/[id].jpg.ts` (per-device name, from `getAllDeviceSlugs()`),
+  `src/pages/og/license/[id].jpg.ts` (per-license name + open/partial/restricted tier badge) — all
+  follow the existing `src/lib/og.ts` satori+resvg+sharp pattern from `og/[id].jpg.ts`/`og/home.jpg.ts`.
+  Verified in the actual build output (`dist/client/og/tier.jpg`, `.../og/license/apache-2-0.jpg`,
+  275 device images), not just that the build didn't error.
+- **Follow-up, same day**: `og/home.jpg`'s stale "Can I Run AI locally?" tagline (flagged above) was
+  confirmed and fixed. `src/lib/og.ts`'s font loader was `Inter`-only, which has no Thai glyphs — so
+  fixing the Thai homepage's OG image needed a Thai-capable font, not just new copy. Extended
+  `getFonts()`/`renderOgImage()` to accept a `lang: "th" | "en"` (defaults `"en"`, so every existing
+  caller is unchanged) and fetch **IBM Plex Sans Thai** for `"th"` — the same Thai body font already
+  used elsewhere on the site (`design.astro`, `playground.astro`), not a new typeface — via the same
+  Google Fonts CSS2 + spoofed-UA-for-TTF trick `loadGoogleFont` already used for Inter. `og/home.jpg.ts`
+  now renders the real Thai brand line ("เครื่องคุณรัน AI ตัวไหนได้บ้าง?", matching `Layout.astro`'s
+  actual default title) with `renderOgImage(el, "th")`. Since `/` and `/en/` previously both silently
+  shared one English-only image, split it: **`og/home-en.jpg.ts`** is new (the old English content,
+  headline reworded to match `en/index.astro`'s real title "Which AI can your machine run?"), and
+  `en/index.astro` now passes `image="/og/home-en.jpg"` explicitly instead of falling through to the
+  Thai-default image prop. Verified by rendering both and reading the actual JPEGs — Thai tone marks
+  and vowels render correctly, no tofu/missing-glyph boxes.
+- **Still not done**: `why`/`compare`/`docs`/`playground` still use the default home OG image (lower
+  priority than tier/device/license were — they're not per-entity pages, so a custom image
+  differentiates less). `blog/[slug].astro`'s feature image still uses `alt=""` unconditionally
+  instead of `post.title`/`post.excerpt`.
+
+---
+
+## Fine-tuning feasibility mode (LoRA/QLoRA/Full) — 2026-08-09
+
+First cut of `idea.md`'s differentiator: "if I fine-tune this with LoRA, does my hardware hold up?"
+Landed on the model detail page only (`/model/[id]`), not yet the home page's full model list.
+
+- **`packages/compatibility/src/training.ts`** (new file, re-exported via `index.ts`'s `export *`,
+  same pattern as `ui.ts`/`device-slugs.ts` already being separate files in that package): three
+  `bytesPerParam` + `baseOverheadGB` profiles for `qlora`/`lora`/`full`, fitted to published/commonly-
+  cited reference points rather than invented — QLoRA constants match Dettmers et al. 2023 (QLoRA
+  paper, Table 9: 7B≈5.4GB, 13B≈9GB, 33B≈21GB, 65B≈41GB); LoRA and full-fine-tune constants match the
+  standard mixed-precision memory breakdown (fp16 weights+grads, fp32 master+AdamW moments) and the
+  commonly cited "~16GB to LoRA a 7B" / "~120GB to fully fine-tune a 7B" figures. `estimateTrainingVRAM()`
+  scales the overhead term (not the base term) by context length and batch size — activation memory is
+  the part that actually grows with those. `evaluateTrainingComplete()` reuses the existing
+  `evaluateModel`/`computeScore`/`scoreToGrade` fit pipeline (same S–F grading inference already uses)
+  rather than inventing a parallel one — training has no tok/s-equivalent metric, so `computeScore`
+  gets `toksPerSec: null` and falls back to its existing status-based default. 10 new tests in
+  `tests/training.test.ts`, anchored to the same published numbers as the formula comments.
+- **UI**: `model/[id].astro` gained a "Fine-tuning" sidebar section (icon: new `src/icons/sliders.svg`,
+  no existing icon fit) with a QLoRA/LoRA/Full toggle, wired into the page's existing client-side
+  hardware-detection lifecycle (`detectedHW`/`currentHW`, the same state the "Your Hardware" section
+  and quant-row grading already update from) — so switching device/RAM/bandwidth overrides updates
+  both sections together. Verified live in-browser: an Apple M4 (16GB unified) shows QLoRA on
+  Llama 3.1 8B as 6GB/feasible, LoRA as 18GB/too heavy, Full as 132GB/too heavy — matches the formulas
+  by hand.
+- **Deliberately out of scope for this pass** (see `docs/idea.md`'s "Next up" item 4, still open):
+  no toggle on the home page's model list/grid, no training-mode entry in `compare`/`tier`, no
+  dataset-size or GPU-count guidance beyond a single-device VRAM number. The model detail page was
+  the smallest surface that answers the actual question idea.md asks ("can my machine train this
+  model") without redesigning the list/grid pages, which is a separate, larger piece of work.
 
 ---
 
@@ -474,9 +560,14 @@ both GET and POST API routes all respond. Also verified against a *minimal* tree
    navigation between locales.
 3. Add Thai/SEA models: Typhoon, OpenThaiGPT, SeaLLM, WangchanX. One entry each in
    `packages/models/src/index.ts`; quantisation sizes derive automatically from the parameter count.
-4. The fine-tuning / LoRA feasibility mode from `idea.md` — "can my machine *train* this?", which
-   is the differentiator upstream does not have.
-5. SEO work for the rest of the site — separate from localization, still unstarted.
+4. ~~The fine-tuning / LoRA feasibility mode from `idea.md`~~ Landed 2026-08-09 on the model detail
+   page (see "Fine-tuning feasibility mode" above). Still open: the same toggle on the home page's
+   model list/grid, and in `compare`/`tier`.
+5. ~~SEO work for the rest of the site~~ First pass landed 2026-08-09 (see "SEO pass" above):
+   robots.txt domain bug, `lang` attribute fix on 8 pages, JSON-LD on 7 templates, per-page OG images
+   for tier/device/license, home OG image's stale upstream tagline (fixed same day, including adding
+   Thai font support to the OG renderer). Still open: OG images for why/compare/docs/playground,
+   blog feature-image alt text.
 6. Rename `canirun-ai` / `@canirun/*` to AiNaiDee.
 
 ---

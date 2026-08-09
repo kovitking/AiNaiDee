@@ -5,9 +5,24 @@ import Footer from "@/components/Footer.astro";
 import { getActiveParamsBillions, models } from "@/data/models";
 import IconDownload from "@/icons/download.svg";
 import IconCopy from "@/icons/copy.svg";
+
+const tierURL = new URL("/tier", Astro.site).href;
 ---
 
-<Layout title="Tier List — AiNaiDee" description="See which AI models your machine can run, ranked in a classic tier list. Share your results.">
+<Layout title="Tier List — AiNaiDee" description="See which AI models your machine can run, ranked in a classic tier list. Share your results." lang="en" locale="en_US" image="/og/tier.jpg">
+  <Fragment slot="head">
+    <script type="application/ld+json" set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "AiNaiDee — Tier List",
+      "url": tierURL,
+      "description": "See which AI models your machine can run, ranked in a classic tier list.",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "Web Browser",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+      "creator": { "@type": "Organization", "name": "AiNaiDee", "url": new URL("/", Astro.site).href }
+    })}></script>
+  </Fragment>
   <NavHeader />
   <main class="mx-auto max-w-5xl px-4 py-10 sm:px-6">
     <header class="mb-6 text-center">

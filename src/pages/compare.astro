@@ -8,12 +8,28 @@ import IconGpu from "@/icons/gpu.svg";
 const sortedModels = [...models].sort(
   (a, b) => a.paramsBillions - b.paramsBillions
 );
+const compareURL = new URL("/compare", Astro.site).href;
 ---
 
 <Layout
   title="Compare Devices — AiNaiDee"
   description="Compare how well AI models run on two different devices side by side. GPU, Apple Silicon, and mobile comparison."
+  lang="en"
+  locale="en_US"
 >
+  <Fragment slot="head">
+    <script type="application/ld+json" set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "AiNaiDee — Compare Devices",
+      "url": compareURL,
+      "description": "Compare how well AI models run on two different devices side by side.",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "Web Browser",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+      "creator": { "@type": "Organization", "name": "AiNaiDee", "url": new URL("/", Astro.site).href }
+    })}></script>
+  </Fragment>
   <NavHeader />
   <main class="mx-auto max-w-6xl px-4 pb-20 pt-10 sm:px-6">
     <header class="mb-10 text-center">

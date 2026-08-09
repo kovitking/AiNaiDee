@@ -1524,3 +1524,7 @@ export const DEVICE_CATEGORY_ORDER = [
   "AMD RX 9000", "AMD RX 7000", "AMD RX 6000", "AMD RX 5000", "AMD Older", "AMD Integrated",
   "Intel Arc", "Intel Integrated", "Mobile", "SBC / Embedded",
 ];
+
+// ── Fine-tuning feasibility ────────────────────────────────
+
+export * from "./training";

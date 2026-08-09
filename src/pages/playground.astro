@@ -3,12 +3,27 @@ import Layout from "@/layouts/Layout.astro";
 import NavHeader from "@/components/NavHeader.astro";
 
 export const prerender = true;
+
+const playgroundURL = new URL("/playground", Astro.site).href;
 ---
 
 <Layout
   title="Playground — รันโมเดล AI ในเบราว์เซอร์ | AiNaiDee"
   description="รันโมเดล AI ในเบราว์เซอร์โดยตรงด้วย WebGPU แชทกับ LLM ในเครื่อง สลับโมเดลได้ และบทสนทนาไม่หลุดออกจากเครื่องคุณ"
 >
+  <Fragment slot="head">
+    <script type="application/ld+json" set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "AiNaiDee Playground",
+      "url": playgroundURL,
+      "description": "รันโมเดล AI ในเบราว์เซอร์โดยตรงด้วย WebGPU แชทกับ LLM ในเครื่อง สลับโมเดลได้ และบทสนทนาไม่หลุดออกจากเครื่องคุณ",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "Web Browser",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+      "creator": { "@type": "Organization", "name": "AiNaiDee", "url": new URL("/", Astro.site).href }
+    })}></script>
+  </Fragment>
   <div class="flex flex-col h-dvh overflow-hidden">
     <NavHeader />
 

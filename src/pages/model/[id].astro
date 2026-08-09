@@ -30,6 +30,7 @@ import IconMultilingual from "@/icons/multilingual.svg"
 import IconSearch from "@/icons/search.svg"
 import IconLmStudio from "@/icons/logo-lmstudio.svg"
 import IconLicense from "@/icons/license.svg"
+import IconSliders from "@/icons/sliders.svg"
 import { getModelTitleTransitionName } from "@/lib/view-transitions"
 
 export function getStaticPaths() {
@@ -410,6 +411,49 @@ const USE_CASE_ICONS: Record<string, any> = {
           </div>
         </div>
 
+        <!-- Fine-tuning feasibility -->
+        <div class="pb-8 mb-8 border-b border-edge/20">
+          <h3
+            class="mb-3 inline-flex items-center gap-1.5 font-pixel text-sm text-accent"
+          >
+            <IconSliders class="h-3.5 w-3.5" />
+            Fine-tuning
+          </h3>
+          <div id="train-method-toggle" class="mb-3 flex gap-1.5">
+            <button
+              type="button"
+              data-train-method="qlora"
+              aria-pressed="true"
+              class="train-method-btn rounded-md border border-accent/40 bg-accent/10 px-2.5 py-1 font-mono text-xs text-accent transition-colors"
+            >
+              QLoRA
+            </button>
+            <button
+              type="button"
+              data-train-method="lora"
+              aria-pressed="false"
+              class="train-method-btn rounded-md border border-edge px-2.5 py-1 font-mono text-xs text-muted transition-colors hover:text-primary"
+            >
+              LoRA
+            </button>
+            <button
+              type="button"
+              data-train-method="full"
+              aria-pressed="false"
+              class="train-method-btn rounded-md border border-edge px-2.5 py-1 font-mono text-xs text-muted transition-colors hover:text-primary"
+            >
+              Full
+            </button>
+          </div>
+          <div
+            id="train-compat"
+            class="space-y-2 font-mono text-[13px]"
+            data-params={model.paramsBillions}
+          >
+            <p class="text-muted italic">Detecting...</p>
+          </div>
+        </div>
+
         <!-- Install -->
         <div class="pb-8 mb-8 border-b border-edge/20">
           <h3 class="mb-3 inline-flex items-center gap-1.5 font-pixel text-sm text-accent">
@@ -590,6 +634,8 @@ const USE_CASE_ICONS: Record<string, any> = {
   import {
     detectHardware,
     evaluateModelComplete,
+    evaluateTrainingComplete,
+    TRAINING_METHODS,
     cleanGPUName,
     getDisplayName,
     getHardwareOverrides,
@@ -603,7 +649,7 @@ const USE_CASE_ICONS: Record<string, any> = {
     APPLE_DB,
     GRADES,
   } from "@/lib/hardware"
-  import type { HardwareInfo, HardwareOverrides } from "@/lib/hardware"
+  import type { HardwareInfo, HardwareOverrides, TrainingMethod } from "@/lib/hardware"
   import { fitSelectWidth, buildGroupedDeviceOptions } from "@/lib/hardware-ui"
   import { DEVICE_CATEGORY_ORDER } from "@/lib/hardware"
 
@@ -630,6 +676,49 @@ const USE_CASE_ICONS: Record<string, any> = {
     const evaluationOptions = { activeParamsBillions }
     let detectedHW: HardwareInfo
     let currentHW: HardwareInfo
+    let currentTrainMethod: TrainingMethod = "qlora"
+
+    function renderTraining(hw: HardwareInfo, method: TrainingMethod) {
+      const trainContainer = document.getElementById("train-compat")
+      if (!trainContainer) return
+      const { vramGB, grade } = evaluateTrainingComplete(paramsBillions, hw, method)
+      const info = GRADES[grade]
+      const meta = TRAINING_METHODS[method]
+      trainContainer.innerHTML = `
+        <div class="flex items-center justify-between">
+          <span class="text-muted" data-tooltip="${meta.description}" data-tooltip-pos="bottom" tabindex="0" style="cursor:help">VRAM needed</span>
+          <span class="text-primary">${vramGB} GB</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-muted">Your hardware</span>
+          <span class="inline-flex items-center gap-1.5 font-mono text-xs font-medium uppercase tracking-wider" style="color:${info.color}">
+            ${info.label}
+          </span>
+        </div>
+      `
+    }
+
+    function setActiveTrainMethodButton(method: TrainingMethod) {
+      document.querySelectorAll<HTMLButtonElement>("[data-train-method]").forEach((btn) => {
+        const isActive = btn.dataset.trainMethod === method
+        btn.setAttribute("aria-pressed", String(isActive))
+        btn.classList.toggle("border-accent/40", isActive)
+        btn.classList.toggle("bg-accent/10", isActive)
+        btn.classList.toggle("text-accent", isActive)
+        btn.classList.toggle("border-edge", !isActive)
+        btn.classList.toggle("text-muted", !isActive)
+      })
+    }
+
+    document.querySelectorAll<HTMLButtonElement>("[data-train-method]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const method = btn.dataset.trainMethod as TrainingMethod
+        if (!method || !currentHW) return
+        currentTrainMethod = method
+        setActiveTrainMethodButton(method)
+        renderTraining(currentHW, method)
+      })
+    })
 
     function buildSelectHTML(id: string, presets: number[], detected: number | null, override: number | undefined, formatter: (v: number) => string): string {
       const options = buildSelectOptions(presets, detected)
@@ -776,6 +865,7 @@ const USE_CASE_ICONS: Record<string, any> = {
         }
         updateQuantRows(currentHW)
         renderSidebar(currentHW)
+        renderTraining(currentHW, currentTrainMethod)
       })
 
       function handleFieldChange() {
@@ -790,6 +880,7 @@ const USE_CASE_ICONS: Record<string, any> = {
         currentHW = applyOverrides(detectedHW, newOverrides)
         updateQuantRows(currentHW)
         renderSidebar(currentHW)
+        renderTraining(currentHW, currentTrainMethod)
       }
 
       ramEl?.addEventListener("change", handleFieldChange)
@@ -802,6 +893,7 @@ const USE_CASE_ICONS: Record<string, any> = {
       currentHW = applyOverrides(detectedHW)
       updateQuantRows(currentHW)
       renderSidebar(currentHW)
+      renderTraining(currentHW, currentTrainMethod)
     }
 
     init()

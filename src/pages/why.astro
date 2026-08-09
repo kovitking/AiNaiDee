@@ -7,6 +7,8 @@ import IconArrowFlow from "@/icons/arrow-flow.svg"
 import IconGpu from "@/icons/gpu.svg"
 import IconBandwidth from "@/icons/bandwidth.svg"
 
+const whyURL = new URL("/why", Astro.site).href
+
 // Code snippets as raw strings to avoid Astro parsing curly braces
 const codeWebGL = `<span class="text-muted">// Get GPU renderer string</span>
 <span class="text-accent">const</span> canvas = document.createElement(<span class="text-can-run">"canvas"</span>);
@@ -87,7 +89,19 @@ const codeHF = `<span class="text-muted">// Fetch model stats from HuggingFace A
 <Layout
   title="Why — AiNaiDee"
   description="How AiNaiDee detects your hardware and scores AI models. APIs, algorithms, and methodology explained."
+  lang="en"
+  locale="en_US"
 >
+  <Fragment slot="head">
+    <script type="application/ld+json" set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "name": "Why — AiNaiDee",
+      "url": whyURL,
+      "description": "How AiNaiDee detects your hardware and scores AI models. APIs, algorithms, and methodology explained.",
+      "isPartOf": { "@type": "WebSite", "name": "AiNaiDee", "url": new URL("/", Astro.site).href }
+    })}></script>
+  </Fragment>
   <NavHeader />
   <main class="mx-auto max-w-3xl px-4 py-12 sm:px-6">
     <header class="mb-10 text-center">
