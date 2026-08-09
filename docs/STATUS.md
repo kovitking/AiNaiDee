@@ -4,6 +4,42 @@
 
 ---
 
+## Model catalog now 84, HF stats refreshed, deployed — 2026-08-09
+
+- **Added `deepseek-v4-flash-0731`** (commit `192ea0a`) to `packages/models/src/index.ts` —
+  284B total / 13B active MoE, 1M context, MIT license. **The 284B total-param figure is not
+  conclusively verified**: HuggingFace's own model card text says "304B params", OpenRouter's page
+  says "13B active parameters out of 284B total". Went with OpenRouter's figure because an
+  independent back-of-envelope estimate from the model's published `config.json` (hidden_size 4096,
+  moe_intermediate_size 2048, 256 routed + 1 shared experts, 43 layers) lands close to 284B — but
+  that math has real uncertainty (approximate attention/embedding terms) and isn't a substitute for
+  an official DeepSeek tech report. **Revisit this if it matters for a specific use case** — it's a
+  one-line fix (`paramsBillions`, `params`, `minRamGB`/`recommendedRamGB`/`quants` all derive from
+  the same number) followed by the usual commit → push → deploy.
+- **Refreshed `src/data/hf-stats.json` for all 84 models** (commit `e9b7b80`) — the cache was stale
+  enough to matter: spot-checked `gpt-oss-20b` against the live HF API before running and found
+  7.3M cached vs 7.95M live (~8% drift). Also backfilled stats for 16 models that had never been
+  scraped at all (had 0 downloads/likes showing on their pages), including `deepseek-v4-flash-0731`
+  itself, added moments earlier in the same session.
+- **Found a real bug while doing this, not yet fixed**: `pnpm scrape` (per `package.json` and this
+  file's own "Commands" table above) runs `scripts/scrape-models.ts` — but that script is a leftover
+  from the original canirun.ai upstream fork. It writes to `data/models.json` (an unrelated legacy
+  file, not `src/data/hf-stats.json`) and iterates a **hardcoded model list from the old upstream
+  catalog**, not this fork's current 84-model `STATIC_MODELS` array. Running `pnpm scrape` today
+  would silently do nothing useful for updating the stats models pages actually read. The command
+  that does what "Commands" documents is `pnpm exec tsx scripts/fetch-hf-stats.ts` (reads
+  `src/data/models`, writes `src/data/hf-stats.json`) — used directly this session instead of
+  `pnpm scrape`. **Fix is presumably to repoint the `scrape` script in `package.json` at
+  `fetch-hf-stats.ts`** (or delete `scrape-models.ts` entirely if nothing else needs it — check
+  first whether `--discover` mode is still wanted for finding brand-new models automatically, since
+  that's the one thing `fetch-hf-stats.ts` doesn't do) — not done yet, flagged for next session.
+- Also produced (not committed on purpose, it's a personal reference doc, user declined):
+  `docs/adding-a-model.docx` — a step-by-step runbook for adding a new model by hand, covers the
+  same ground as this changelog entry but as a standalone walkthrough with a field-by-field table
+  and a checklist. Stays untracked; regenerate or hand-edit directly if it needs updating.
+
+---
+
 ## SEO pass — 2026-08-09
 
 STATUS.md previously said "SEO work for the rest of the site — still unstarted," which overstated
