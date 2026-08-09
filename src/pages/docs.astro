@@ -2,9 +2,36 @@
 import Layout from "@/layouts/Layout.astro";
 import NavHeader from "@/components/NavHeader.astro";
 import Footer from "@/components/Footer.astro";
+
+const docsURL = new URL("/docs", Astro.site).href;
+const DOCS_TERMS = [
+  "Parameters",
+  "Quantization",
+  "VRAM",
+  "MoE (Mixture of Experts)",
+  "Dense vs MoE Architecture",
+  "Context Length",
+  "Tokens per Second (tok/s)",
+  "GGUF Format",
+  "Memory Bandwidth",
+];
 ---
 
-<Layout title="Docs — AiNaiDee" description="Learn about quantization, VRAM, parameters, and other AI model terminology used on AiNaiDee.">
+<Layout title="Docs — AiNaiDee" description="Learn about quantization, VRAM, parameters, and other AI model terminology used on AiNaiDee." lang="en" locale="en_US">
+  <Fragment slot="head">
+    <script type="application/ld+json" set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "DefinedTermSet",
+      "name": "AiNaiDee Docs — AI Model Terminology",
+      "url": docsURL,
+      "description": "Key terms and concepts used on AiNaiDee, explained simply.",
+      "hasDefinedTerm": DOCS_TERMS.map((name) => ({
+        "@type": "DefinedTerm",
+        "name": name,
+        "inDefinedTermSet": docsURL,
+      })),
+    })}></script>
+  </Fragment>
   <NavHeader />
   <main class="mx-auto max-w-3xl px-4 py-12 sm:px-6">
     <header class="mb-10 text-center">

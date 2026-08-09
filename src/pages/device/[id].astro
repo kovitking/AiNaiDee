@@ -22,6 +22,9 @@ const deviceURL = new URL(`/device/${Astro.params.id}`, Astro.site).href;
 <Layout
   title={`${deviceName} — Can it run AI? | AiNaiDee`}
   description={`Find out which AI models you can run locally on ${deviceName}. VRAM requirements, performance estimates, and compatibility.`}
+  lang="en"
+  locale="en_US"
+  image={`/og/device/${Astro.params.id}.jpg`}
 >
   <Fragment slot="head">
     <script type="application/ld+json" set:html={JSON.stringify({

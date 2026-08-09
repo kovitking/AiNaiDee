@@ -29,12 +29,37 @@ const tierDot = license.tier === "open"
     : "bg-orange-400";
 
 const licenseModels = models.filter((m) => m.license === license.name);
+
+const licenseURL = new URL(`/license/${license.id}`, Astro.site).href;
 ---
 
 <Layout
   title={`${license.name} License — AiNaiDee`}
   description={`${license.fullName}: ${license.summary} See what you can and can't do with ${license.name}-licensed AI models.`}
+  lang="en"
+  locale="en_US"
+  image={`/og/license/${license.id}.jpg`}
 >
+  <Fragment slot="head">
+    <script type="application/ld+json" set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            { "@type": "ListItem", "position": 1, "name": "Home", "item": new URL("/", Astro.site).href },
+            { "@type": "ListItem", "position": 2, "name": `${license.name} License`, "item": licenseURL }
+          ]
+        },
+        {
+          "@type": "WebPage",
+          "name": `${license.name} License — AiNaiDee`,
+          "url": licenseURL,
+          "description": `${license.fullName}: ${license.summary}`
+        }
+      ]
+    })}></script>
+  </Fragment>
   <NavHeader />
   <main class="mx-auto max-w-3xl px-4 py-12 sm:px-6">
     <!-- Back link -->

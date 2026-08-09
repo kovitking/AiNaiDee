@@ -13,12 +13,32 @@ function formatDate(iso: string): string {
     day: "numeric",
   })
 }
+
+const blogURL = new URL("/blog", Astro.site).href
 ---
 
 <Layout
   title="Blog — AiNaiDee"
   description="Guides and notes on running AI models locally — hardware, quantization, and what actually works."
+  lang="en"
+  locale="en_US"
 >
+  {posts.length > 0 && (
+    <Fragment slot="head">
+      <script type="application/ld+json" set:html={JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "Blog",
+        "name": "AiNaiDee Blog",
+        "url": blogURL,
+        "blogPost": posts.map((post) => ({
+          "@type": "BlogPosting",
+          "headline": post.title,
+          "url": new URL(`/blog/${post.slug}`, Astro.site).href,
+          "datePublished": post.published_at,
+        })),
+      })}></script>
+    </Fragment>
+  )}
   <NavHeader />
   <main class="mx-auto max-w-3xl px-4 py-12 sm:px-6">
     <header class="mb-10 text-center">

@@ -42,6 +42,8 @@ const jsonLd = {
   description={post.meta_description || post.excerpt}
   image={ogImage}
   type="article"
+  lang="en"
+  locale="en_US"
 >
   <Fragment slot="head">
     <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
