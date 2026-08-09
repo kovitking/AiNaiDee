@@ -181,8 +181,8 @@ Hardware support lives in lookup tables, not in detection logic — extend `GPU_
 
 ### Model catalog — `packages/models/src/index.ts`
 
-83 models, each a one-line entry in the `STATIC_MODELS` array (the README's "68+" is stale). The
-whole module is 228 lines because sizes are **derived, not hand-written**:
+84 models, each a one-line entry in the `STATIC_MODELS` array (the README's "68+" is stale). The
+whole module is 229 lines because sizes are **derived, not hand-written**:
 
 - `makeQuants(paramsB)` generates all 7 quantization levels (Q2_K → F16) from the parameter count,
   applying a 1.1 factor plus `RUNTIME_OVERHEAD_GB = 0.5` for KV cache and runtime.
