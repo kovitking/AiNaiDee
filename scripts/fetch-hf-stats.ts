@@ -26,7 +26,7 @@ async function fetchStats(hfUrl: string): Promise<HFStats | null> {
   const repoId = match[1];
   try {
     const res = await fetch(`https://huggingface.co/api/models/${repoId}`, {
-      headers: { "User-Agent": "canirun-scraper/1.0" },
+      headers: { "User-Agent": "ainaidee-scraper/1.0" },
     });
     if (!res.ok) return null;
     const data = await res.json();

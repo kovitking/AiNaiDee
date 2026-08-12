@@ -14,7 +14,7 @@ export const RUNAI_LLAMA_CANDIDATES = process.env.RUNAI_LLAMA_CANDIDATES
     .filter(Boolean)
   : ["llama-cli", "llama"];
 export const RUNAI_VERSION = "0.2.0";
-export const RUNAI_TELEMETRY_ENDPOINT = process.env.RUNAI_TELEMETRY_ENDPOINT || "https://canirun.ai/api/runai/metrics";
+export const RUNAI_TELEMETRY_ENDPOINT = process.env.RUNAI_TELEMETRY_ENDPOINT || "https://ainaidee.com/api/runai/metrics";
 export const RUNAI_TELEMETRY_DISABLED = process.env.RUNAI_TELEMETRY_DISABLED === "1";
 
 export const RUNAI_KEEP_ALIVE_MS = Number(process.env.RUNAI_KEEP_ALIVE || "300") * 1000;

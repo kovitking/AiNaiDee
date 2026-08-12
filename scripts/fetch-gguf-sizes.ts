@@ -71,7 +71,7 @@ async function fetchTreeFiles(repo: string): Promise<{ name: string; sizeGB: num
   const url = `https://huggingface.co/api/models/${repo}/tree/main`;
   try {
     const resp = await fetch(url, {
-      headers: { "User-Agent": "canirun-scraper/1.0" },
+      headers: { "User-Agent": "ainaidee-scraper/1.0" },
       signal: AbortSignal.timeout(15000),
     });
     if (!resp.ok) return [];

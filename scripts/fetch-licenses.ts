@@ -10,7 +10,7 @@ const HF_API = "https://huggingface.co/api/models";
 const HF_TOKEN = process.env.HF_TOKEN || process.env.HUGGING_FACE_HUB_TOKEN;
 
 function authHeaders(): Record<string, string> {
-  const headers: Record<string, string> = { "User-Agent": "canirun-scraper/1.0" };
+  const headers: Record<string, string> = { "User-Agent": "ainaidee-scraper/1.0" };
   if (HF_TOKEN) headers["Authorization"] = `Bearer ${HF_TOKEN}`;
   return headers;
 }

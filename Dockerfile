@@ -16,10 +16,11 @@ COPY packages/models/package.json packages/models/
 # workspace has to match the lockfile or --frozen-lockfile refuses to install.
 COPY packages/runai/package.json packages/runai/
 
-# `canirun-ai...` = the site plus the workspace packages it depends on. This
-# deliberately excludes packages/runai, whose node-llama-cpp dependency pulls a
-# large native toolchain the website never uses.
-RUN pnpm install --frozen-lockfile --filter "canirun-ai..."
+# `ainaidee...` = the site plus the workspace packages it depends on. The name
+# must match the root package.json's "name" field. This deliberately excludes
+# packages/runai, whose node-llama-cpp dependency pulls a large native toolchain
+# the website never uses.
+RUN pnpm install --frozen-lockfile --filter "ainaidee..."
 
 COPY . .
 
