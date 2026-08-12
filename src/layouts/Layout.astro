@@ -28,6 +28,10 @@ const {
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
 const ogImageURL = new URL(image, Astro.site);
 
+// Google Analytics 4. Only emitted in production builds — `pnpm dev` and
+// `pnpm test` would otherwise send localhost hits into the real property.
+const analyticsEnabled = import.meta.env.PROD;
+
 // Only pages that actually have a translated counterpart (the home page,
 // this pilot round) get hreflang alternates — everything else would point
 // at a 404 under /en/.
@@ -46,6 +50,22 @@ const enAlternateURL = hasTranslation
 <!doctype html>
 <html lang={lang}>
   <head>
+    {/* Google tag (gtag.js) — must stay first in <head>, and must stay
+        `is:inline` plain JS: Astro ships attribute-carrying scripts verbatim,
+        which is exactly what gtag needs (no bundling, no module scope). */}
+    {analyticsEnabled && (
+      <>
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-F8RD8Z8QXT"></script>
+        <script is:inline>
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+
+          gtag('config', 'G-F8RD8Z8QXT');
+        </script>
+      </>
+    )}
+
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
