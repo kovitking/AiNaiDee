@@ -1,5 +1,5 @@
 {
-  "name": "canirun-ai",
+  "name": "ainaidee",
   "type": "module",
   "version": "0.0.1",
   "private": true,
@@ -11,16 +11,16 @@
     "astro": "astro",
     "scrape": "tsx scripts/scrape-models.ts",
     "fetch:readmes": "tsx scripts/fetch-ollama-readmes.ts",
-    "packages:build": "pnpm --filter @canirun/compatibility --filter @canirun/models build",
-    "packages:typecheck": "pnpm --filter @canirun/compatibility --filter @canirun/models typecheck",
+    "packages:build": "pnpm --filter @ainaidee/compatibility --filter @ainaidee/models build",
+    "packages:typecheck": "pnpm --filter @ainaidee/compatibility --filter @ainaidee/models typecheck",
     "check": "pnpm packages:build && astro check",
     "test": "vitest run"
   },
   "dependencies": {
     "@astrojs/node": "10.1.0",
     "@astrojs/sitemap": "3.7.2",
-    "@canirun/compatibility": "workspace:*",
-    "@canirun/models": "workspace:*",
+    "@ainaidee/compatibility": "workspace:*",
+    "@ainaidee/models": "workspace:*",
     "@fontsource/chakra-petch": "5.3.0",
     "@fontsource/ibm-plex-mono": "5.3.0",
     "@fontsource/ibm-plex-sans-thai": "5.3.0",

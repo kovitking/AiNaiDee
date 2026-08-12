@@ -93,7 +93,7 @@ flowchart TB
         direction TB
         b1["npm i -g pnpm@11.1.3"]
         b2["COPY manifests only<br/>root + compatibility + models + runai/package.json<br/>runai manifest needed or --frozen-lockfile refuses —<br/>BUG HIT HERE: .dockerignore originally excluded<br/>this file too, fixed 2026-07-31"]
-        b3["pnpm install --frozen-lockfile<br/>--filter 'canirun-ai...'<br/>excludes runai and its node-llama-cpp toolchain"]
+        b3["pnpm install --frozen-lockfile<br/>--filter 'ainaidee...'<br/>excludes runai and its node-llama-cpp toolchain"]
         b4["COPY . ."]
         b5["ARG SITE_URL=http://203.0.113.10:8587<br/>baked into sitemap + absolute OG urls<br/>(phase 1 default — becomes the real domain at phase 2)"]
         b6["pnpm build<br/>= packages:build then astro build<br/>renders 83 OG jpgs via sharp + resvg<br/>needs glibc — BUG ALSO HIT HERE: design.astro imported<br/>3 @fontsource packages missing from package.json,<br/>fixed same day"]

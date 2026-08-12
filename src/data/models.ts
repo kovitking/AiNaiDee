@@ -1,1 +1,1 @@
-export * from "@canirun/models";
+export * from "@ainaidee/models";

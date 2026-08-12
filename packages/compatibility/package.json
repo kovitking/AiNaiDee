@@ -1,18 +1,18 @@
 {
-  "name": "@canirun/compatibility",
+  "name": "@ainaidee/compatibility",
   "version": "0.1.0",
-  "description": "Browser compatibility checks for local AI models in CanIRun.ai",
+  "description": "Browser compatibility checks for local AI models in AiNaiDee",
   "type": "module",
   "packageManager": "pnpm@11.1.3",
   "sideEffects": false,
-  "homepage": "https://canirun.ai",
+  "homepage": "https://ainaidee.com",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/midudev/canirun.ai.git",
+    "url": "git+https://github.com/kovitking/AiNaiDee.git",
     "directory": "packages/compatibility"
   },
   "bugs": {
-    "url": "https://github.com/midudev/canirun.ai/issues"
+    "url": "https://github.com/kovitking/AiNaiDee/issues"
   },
   "keywords": [
     "ai",
@@ -20,7 +20,7 @@
     "hardware",
     "webgpu",
     "llm",
-    "canirun"
+    "ainaidee"
   ],
   "exports": {
     ".": {

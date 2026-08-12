@@ -1,1 +1,1 @@
-export * from "@canirun/compatibility/device-slugs";
+export * from "@ainaidee/compatibility/device-slugs";

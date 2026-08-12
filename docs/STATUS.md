@@ -1,6 +1,54 @@
 # AiNaiDee — project status
 
-**Last updated: 2026-08-09.** Start here when picking the project back up.
+**Last updated: 2026-08-12.** Start here when picking the project back up.
+
+---
+
+## Package rename `canirun-ai` → `ainaidee` — 2026-08-12
+
+The last real rebrand item, done in one commit as CLAUDE.md required (root name, `@canirun/*` →
+`@ainaidee/*`, the Dockerfile `--filter`, and `pnpm-lock.yaml` all move together or the container
+build breaks):
+
+- Root `package.json` `name`: `canirun-ai` → **`ainaidee`**; both workspace packages →
+  **`@ainaidee/compatibility`**, **`@ainaidee/models`**; their `homepage`/`repository`/`bugs` now
+  point at ainaidee.com and `kovitking/AiNaiDee` instead of canirun.ai and midudev's repo.
+- Import sites updated: the four one-line shims in `src/lib` + `src/data/models.ts`, and
+  `src/pages/design.astro` (excluded from `astro check` but **still built**, so a stale import there
+  would have failed the Rollup resolve).
+- `Dockerfile` filter → `--filter "ainaidee..."`. Verified locally that the filter still selects
+  exactly root + compatibility + models and excludes runai, and that
+  `pnpm install --frozen-lockfile --filter "ainaidee..."` — the container's exact command — exits 0
+  against the regenerated lockfile.
+- Also fixed while in there: `packages/runai/src/config.ts` defaulted `RUNAI_TELEMETRY_ENDPOINT` to
+  **`https://canirun.ai/api/runai/metrics`** — our CLI was pointing its telemetry at upstream's
+  domain. Now ainaidee.com. Scraper `User-Agent` strings likewise `canirun-scraper` →
+  `ainaidee-scraper`.
+- **Two `canirun` strings kept on purpose**: the `Footer.astro` fork credit (MIT attribution), and
+  `HW_OVERRIDE_KEY = "canirun-hw-overrides"` in `packages/compatibility/src/index.ts` — that one is
+  a localStorage key, so renaming it silently throws away the saved hardware overrides of every
+  returning visitor. Rename only alongside a one-time read of the old key.
+- Verified: `pnpm check` 0 errors, 210 tests / 8 files pass, `pnpm build` clean, built server's bare
+  imports still just `@libsql/client`, and both of `deploy-server.sh`'s smoke-test requests succeed
+  against the local production build.
+
+## Google Analytics 4 live — 2026-08-12
+
+- GA4 tag (`G-F8RD8Z8QXT`) added at the top of `<head>` in `src/layouts/Layout.astro`, gated on
+  `import.meta.env.PROD` so `pnpm dev` never sends localhost hits into the real property. Every page
+  rendering through the layout inherits it once — verified in production on `/`, `/en/`, `/tier`,
+  `/why`, `/docs`, `/compare`, `/blog`, `/license/*`, `/model/*`, `/device/*`.
+- **Confirmed working in GA Realtime**, including SPA navigation: clicking an in-site link (Astro
+  `ClientRouter`, `pushState`, no document load) registered `/tier` as its own page view. No manual
+  `page_view` wiring is needed — GA4 enhanced measurement's history-event tracking already covers it.
+- **Two pages have no tag**: the 404 (there is no `src/pages/404.astro`, so Astro serves its own
+  bare built-in page — worth building a real one) and `/design` (stale demo with its own `<head>`,
+  deliberately skipped since it should just be deleted).
+- Careful in the GA UI: the account's *default* property is **Thaivote69**, not this site. Check the
+  property name at top-left before concluding there's no traffic. The Realtime cards also don't
+  auto-refresh — reload the GA page to see new hits.
+- The rule "every new page must carry this tag" is recorded in `CLAUDE.local.md`, which is excluded
+  via `.git/info/exclude` (not `.gitignore`, which is itself tracked and would be pushed).
 
 ---
 
@@ -604,7 +652,11 @@ both GET and POST API routes all respond. Also verified against a *minimal* tree
    for tier/device/license, home OG image's stale upstream tagline (fixed same day, including adding
    Thai font support to the OG renderer). Still open: OG images for why/compare/docs/playground,
    blog feature-image alt text.
-6. Rename `canirun-ai` / `@canirun/*` to AiNaiDee.
+6. ~~Rename `canirun-ai` / `@canirun/*` to AiNaiDee.~~ Landed 2026-08-12 — see "Package rename" at
+   the top of this file.
+7. Build a real `src/pages/404.astro` — there is none, so a mistyped URL gets Astro's bare built-in
+   404: English, off-theme, no way back to the home page, and no GA tag. One file through
+   `Layout.astro` fixes all three.
 
 ---
 

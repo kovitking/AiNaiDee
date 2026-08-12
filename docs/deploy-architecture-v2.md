@@ -77,7 +77,7 @@ flowchart TB
         direction TB
         b1["npm i -g pnpm@11.1.3"]
         b2["COPY manifests only<br/>root + compatibility + models + runai/package.json<br/>(runai manifest needed or --frozen-lockfile refuses)"]
-        b3["pnpm install --frozen-lockfile<br/>--filter 'canirun-ai...'<br/>excludes runai and its node-llama-cpp toolchain"]
+        b3["pnpm install --frozen-lockfile<br/>--filter 'ainaidee...'<br/>excludes runai and its node-llama-cpp toolchain"]
         b4["COPY . ."]
         b5["ARG SITE_URL=https://ainaidee.com<br/>baked into sitemap + absolute OG urls"]
         b6["pnpm build<br/>= packages:build then astro build<br/>renders 83 OG jpgs via sharp + resvg<br/>needs glibc, needs about 2 GB RAM"]

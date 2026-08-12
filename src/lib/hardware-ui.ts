@@ -1,1 +1,1 @@
-export * from "@canirun/compatibility/ui";
+export * from "@ainaidee/compatibility/ui";

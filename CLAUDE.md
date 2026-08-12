@@ -411,9 +411,9 @@ profile plan that is no longer how this works — Imperva replaced Caddy's TLS r
 
 ### Container build traps
 
-The builder stage installs with `--filter "canirun-ai..."`, which deliberately excludes
-`packages/runai` — its `node-llama-cpp` dependency drags in a native toolchain the website never
-uses. But the Dockerfile still copies `packages/runai/package.json`, because `--frozen-lockfile`
+The builder stage installs with `--filter "ainaidee..."` — the root `package.json` name, so the two
+must change together — which deliberately excludes `packages/runai`, whose `node-llama-cpp`
+dependency drags in a native toolchain the website never uses. But the Dockerfile still copies `packages/runai/package.json`, because `--frozen-lockfile`
 refuses to install a workspace that doesn't match the lockfile. `.dockerignore` must therefore
 exclude runai's *contents* while re-including that one file:
 
@@ -443,9 +443,10 @@ grep -rhoE "from *[\"'][@a-z][^\"'./][^\"']*[\"']" dist/server/ | sort -u
 
 ## Rebranding still to do
 
-- `package.json` is still named `canirun-ai`; the workspace packages are still `@canirun/*`, and both
-  package manifests still point `homepage`/`repository` at canirun.ai and midudev's repo. The
-  Dockerfile's `--filter "canirun-ai..."` depends on that root name — rename both together.
+- ~~Package names.~~ **Done 2026-08-12.** Root `package.json` is `ainaidee`, the workspace packages
+  are `@ainaidee/compatibility` / `@ainaidee/models`, both manifests point `homepage`/`repository`
+  at ainaidee.com and `kovitking/AiNaiDee`, and the Dockerfile filter is `"ainaidee..."`. All in one
+  commit with `pnpm-lock.yaml`, as required.
 - The `/design` visual direction (indigo/bone/saffron palette, Chakra Petch/IBM Plex fonts,
   row+ruler layout) **is applied to the real home page** — `src/styles/global.css` theme tokens,
   `ModelListContent.astro`, `NavHeader.astro`, `Footer.astro`, `Layout.astro` were all rewritten
@@ -483,10 +484,13 @@ grep -rhoE "from *[\"'][@a-z][^\"'./][^\"']*[\"']" dist/server/ | sort -u
 
 Still open:
 
-- `package.json` is still named `canirun-ai` and the workspace packages are still `@canirun/*` —
-  see the first bullet above. This is the last real rebrand item, and it is deliberately deferred
-  because the Dockerfile's `--filter "canirun-ai..."` and `pnpm-lock.yaml` must change in the same
-  commit or the container build breaks.
 - Thai localization is still partial (see the localization bullet above).
+
+The package rename that used to sit here landed on 2026-08-12 — see the first bullet under
+"Rebranding still to do". Two `canirun` references are **deliberately kept**: the `Footer.astro`
+fork credit (MIT attribution) and `HW_OVERRIDE_KEY = "canirun-hw-overrides"` in
+`packages/compatibility/src/index.ts`, which is a localStorage key — renaming it would silently
+discard the hardware overrides of every returning visitor. Rename it only together with a migration
+that reads the old key once.
 
 Current state, decisions and open questions: **`docs/STATUS.md`**.
