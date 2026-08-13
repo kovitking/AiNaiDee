@@ -4,6 +4,33 @@
 
 ---
 
+## ⚠️ Resume here — one commit is local-only
+
+`427a66f` (the `canirun-ai` → `ainaidee` package rename, plus this file's 2026-08-12 entries) is
+**committed on `main` but NOT pushed and NOT deployed.** Production is still running the previous
+commit, `a948151` (Google Analytics), which *is* pushed and live. Kovit deliberately held off on
+push+deploy at the end of the 2026-08-12 session — this is a pause, not a problem.
+
+To finish it:
+
+```bash
+git log --oneline origin/main..main   # expect exactly 427a66f
+git push origin main
+bash scripts/deploy.sh                # needs scripts/deploy.local.env (gitignored, already written)
+```
+
+The rename passes everything verifiable locally (`pnpm check`, 210 tests, `pnpm build`, the
+frozen-lockfile install with the new `--filter "ainaidee..."`, both smoke-test requests). The one
+thing that **cannot** be checked from the Mac is the real container build — no Docker there. If the
+filter were wrong the deploy would fail during `docker compose build`, and `deploy-server.sh` aborts
+before swapping, so the live site stays untouched either way.
+
+Untracked and unexplained in the working tree, left alone on purpose: `deployloop.patch`,
+`header-icon-design/`. (`docs/adding-a-model.docx` is intentionally untracked — personal reference.)
+Ask Kovit what the first two are before deleting or committing them.
+
+---
+
 ## Package rename `canirun-ai` → `ainaidee` — 2026-08-12
 
 The last real rebrand item, done in one commit as CLAUDE.md required (root name, `@canirun/*` →
