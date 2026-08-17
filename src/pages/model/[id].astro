@@ -382,13 +382,17 @@ const USE_CASE_ICONS: Record<string, any> = {
           </div>
         </section>
 
-        <!-- Ollama README -->
-        {readme && (
-          <section class="mb-8">
-            <h2 class="mb-4 font-pixel text-sm text-muted">About this model</h2>
+        <!-- Ollama README, falling back to the catalog description when no README was scraped -->
+        <section class="mb-8">
+          <h2 class="mb-4 font-pixel text-sm text-muted">About this model</h2>
+          {readme ? (
             <div class="model-readme rounded-lg border border-edge bg-surface-card/30 p-5 sm:p-6" set:html={readme} />
-          </section>
-        )}
+          ) : (
+            <div class="model-readme rounded-lg border border-edge bg-surface-card/30 p-5 sm:p-6">
+              <p>{model.description}</p>
+            </div>
+          )}
+        </section>
       </div>
 
       <!-- RIGHT COLUMN — Install & compatibility -->

@@ -73,7 +73,9 @@ function extractReadmeHTML(html: string): string | null {
 }
 
 function getOllamaSlugMap(): Map<string, string> {
-  const modelsPath = resolve(import.meta.dirname ?? ".", "..", "src", "data", "models.ts");
+  // src/data/models.ts is a one-line re-export shim (see CLAUDE.md) — the real
+  // STATIC_MODELS array lives in packages/models/src/index.ts.
+  const modelsPath = resolve(import.meta.dirname ?? ".", "..", "packages", "models", "src", "index.ts");
   const content = readFileSync(modelsPath, "utf-8");
 
   const slugMap = new Map<string, string>();
@@ -148,7 +150,10 @@ async function main() {
 
   await pool(slugsToFetch, CONCURRENCY, async ([slug, modelIds]) => {
     try {
-      const html = await fetchPage(`${BASE}/library/${slug}`);
+      // Community-namespace models (e.g. "scb10x/model-name") live at ollama.com/<slug>,
+      // not under /library/ — that path is reserved for Ollama's own curated library.
+      const url = slug.includes("/") ? `${BASE}/${slug}` : `${BASE}/library/${slug}`;
+      const html = await fetchPage(url);
       const readme = extractReadmeHTML(html);
 
       fetched++;
