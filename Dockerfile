@@ -20,7 +20,17 @@ COPY packages/runai/package.json packages/runai/
 # must match the root package.json's "name" field. This deliberately excludes
 # packages/runai, whose node-llama-cpp dependency pulls a large native toolchain
 # the website never uses.
-RUN pnpm install --frozen-lockfile --filter "ainaidee..."
+#
+# --no-optional matters even with that filter: packages/runai/package.json is
+# still copied in (see COPY above, and the .dockerignore note there), and
+# node-llama-cpp declares EVERY os/backend combination (mac/win/linux x
+# plain/cuda/vulkan/metal, 13 total) as optionalDependencies with no per-run
+# way to skip just the ones this platform doesn't need. Later pnpm commands
+# reconcile the whole workspace's lockfile state regardless of --filter, which
+# re-triggers this resolution — --no-optional is what actually stops pnpm from
+# ever fetching those (mostly multi-hundred-MB) CUDA/Vulkan binaries, which the
+# npm registry serves flakily enough to hang a deploy for 20+ minutes.
+RUN pnpm install --frozen-lockfile --no-optional --filter "ainaidee..."
 
 COPY . .
 
@@ -38,12 +48,12 @@ ARG GHOST_CONTENT_API_KEY=""
 ENV GHOST_URL=$GHOST_URL
 ENV GHOST_CONTENT_API_KEY=$GHOST_CONTENT_API_KEY
 
-# Filtered to match the install above. A bare `pnpm build` here re-resolves
-# the FULL workspace (including packages/runai's node-llama-cpp, whose native
-# CUDA binaries the npm registry serves flakily) even though nothing in the
-# build path touches runai — this was silently adding 2-4 minutes of registry
-# retries to every deploy for a package the website never imports.
-RUN pnpm --filter "ainaidee..." build
+# --config.optional=false, not --no-optional: this later pnpm command still
+# reconciles the full workspace lockfile state despite --filter (confirmed
+# live 2026-08-17 — it re-attempted the CUDA/Vulkan downloads here too), but
+# --no-optional is install-only and errors as an unknown option on `pnpm run`/
+# filtered-build invocations. The --config.<key>=<value> form works everywhere.
+RUN pnpm --filter "ainaidee..." --config.optional=false build
 
 # ─── runtime ──────────────────────────────────────────────────────────────
 # The built server imports exactly one package from node_modules
