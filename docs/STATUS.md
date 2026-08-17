@@ -1,33 +1,61 @@
 # AiNaiDee — project status
 
-**Last updated: 2026-08-12.** Start here when picking the project back up.
+**Last updated: 2026-08-17.** Start here when picking the project back up.
 
 ---
 
-## ⚠️ Resume here — one commit is local-only
+## ⚠️ Resume here — everything pushed and deployed, one open problem left unfixed on purpose
 
-`427a66f` (the `canirun-ai` → `ainaidee` package rename, plus this file's 2026-08-12 entries) is
-**committed on `main` but NOT pushed and NOT deployed.** Production is still running the previous
-commit, `a948151` (Google Analytics), which *is* pushed and live. Kovit deliberately held off on
-push+deploy at the end of the 2026-08-12 session — this is a pause, not a problem.
+**Nothing is pending.** `main` is pushed to `origin` and production is live on `5e810da`. Working
+tree is clean except the same three untracked files as always (see bottom of this section) — `git
+status` confirms.
 
-To finish it:
+This session (2026-08-17), in order:
 
-```bash
-git log --oneline origin/main..main   # expect exactly 427a66f
-git push origin main
-bash scripts/deploy.sh                # needs scripts/deploy.local.env (gitignored, already written)
-```
-
-The rename passes everything verifiable locally (`pnpm check`, 210 tests, `pnpm build`, the
-frozen-lockfile install with the new `--filter "ainaidee..."`, both smoke-test requests). The one
-thing that **cannot** be checked from the Mac is the real container build — no Docker there. If the
-filter were wrong the deploy would fail during `docker compose build`, and `deploy-server.sh` aborts
-before swapping, so the live site stays untouched either way.
+1. **Pushed + deployed the 2026-08-12 rename** (`427a66f`, `bdb1929`) that a prior session had left
+   local-only. No longer relevant beyond this note.
+2. **Added 16 Thai/SEA models** (`dd0891f`) — the fork's original `docs/idea.md` goal, previously
+   only a TODO: Typhoon 2/2.1/2.5 (SCB 10X, 9 sizes 1.2B–70.6B incl. one MoE), OpenThaiGPT 1.5/1.6/R1
+   (4 sizes 7.6B–72.7B), SeaLLMs v3 (Alibaba DAMO, 1.5B/7.6B), WangchanLion 7B (VISTEC-depa). Catalog
+   is now **100 models**, up from 84. All data pulled from HuggingFace's API
+   (`safetensors.total`, `config.json`, license tags) rather than guessed — see the commit body for
+   the full sourcing rationale, including which license label maps to which (`Qwen` reused for
+   OpenThaiGPT since it's literally the same upstream license; `SeaLLMs` added as a new license-tier
+   label). Deliberately skipped: non-chat variants (OCR/audio/whisper/translate), superseded
+   generations, and a "Demo" WangchanX repo that wasn't a real release.
+3. **Fixed "About this model" showing blank on every new model** (`b71a19a`) — two real bugs, not
+   just missing data: (a) `model/[id].astro` hid the whole section instead of falling back to the
+   catalog `description` when no Ollama README was cached; (b) `scripts/fetch-ollama-readmes.ts` had
+   been silently reading `src/data/models.ts` — a one-line re-export shim with zero model data since
+   the `packages/models` split — so it had been matching **zero** models and doing nothing on every
+   run since that refactor, not just for the new models. Also didn't know community-namespace Ollama
+   IDs (`scb10x/...`) live at `ollama.com/<slug>`, not `ollama.com/library/<slug>`. Fixed both,
+   re-fetched, verified all 100 pages non-empty with a nesting-aware parse (a first naive-regex pass
+   falsely flagged 12 fine pages — don't trust a quick grep on nested-`<div>` HTML).
+4. **Deploy speed investigation — tried, failed twice, reverted, left unfixed on purpose.** Deploys
+   take ~8-10 min because `packages/runai`'s `node-llama-cpp` optional dependency drags in
+   CUDA/Vulkan native binaries the website never uses, and the npm registry serves them flakily
+   (one attempt hung dead for 20+ min mid-session and had to be killed by hand — confirmed safe,
+   `deploy-server.sh` never touches the live directory before a successful smoke test). Two fixes
+   attempted and both reverted:
+   - `pnpm build` → `pnpm --filter "ainaidee..." build` (`42f288d`) — insufficient alone, the build
+     step still reconciles the full workspace regardless of `--filter`.
+   - `--no-optional` / `--config.optional=false` on top of that (`4a20b8c`) — **broke the build
+     outright**. That flag disables *all* `optionalDependencies` tree-wide, not just
+     node-llama-cpp's: silently broke `esbuild`'s platform binary (self-healed via esbuild's own
+     npm fallback) and broke `@rollup/rollup-linux-x64-gnu` (did not self-heal, failed the build,
+     never reached smoke-test — prod unaffected). Reverted in `5e810da`, back to `42f288d`'s
+     filter-only shape: verified safe, still slow.
+   
+   **Real fix needs a `pnpm.overrides` entry** pointing just `@node-llama-cpp/*-cuda*` /
+   `*-vulkan*` / the unused win/mac variants at an empty stub, leaving esbuild/rollup/sharp/
+   onnxruntime-node's own optional binaries alone — **not attempted, needs actual Docker to test
+   first** (none on this Mac). Kovit said to leave it for now. Full blow-by-blow, including exact
+   error messages, in memory (`ainaidee-deploy-friction`) if picking this back up.
 
 Untracked and unexplained in the working tree, left alone on purpose: `deployloop.patch`,
-`header-icon-design/`. (`docs/adding-a-model.docx` is intentionally untracked — personal reference.)
-Ask Kovit what the first two are before deleting or committing them.
+`header-icon-design/`. (`docs/adding-a-model.docx` is intentionally untracked — personal
+reference.) Ask Kovit what the first two are before deleting or committing them.
 
 ---
 
