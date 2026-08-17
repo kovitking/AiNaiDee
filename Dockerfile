@@ -38,7 +38,12 @@ ARG GHOST_CONTENT_API_KEY=""
 ENV GHOST_URL=$GHOST_URL
 ENV GHOST_CONTENT_API_KEY=$GHOST_CONTENT_API_KEY
 
-RUN pnpm build
+# Filtered to match the install above. A bare `pnpm build` here re-resolves
+# the FULL workspace (including packages/runai's node-llama-cpp, whose native
+# CUDA binaries the npm registry serves flakily) even though nothing in the
+# build path touches runai — this was silently adding 2-4 minutes of registry
+# retries to every deploy for a package the website never imports.
+RUN pnpm --filter "ainaidee..." build
 
 # ─── runtime ──────────────────────────────────────────────────────────────
 # The built server imports exactly one package from node_modules
