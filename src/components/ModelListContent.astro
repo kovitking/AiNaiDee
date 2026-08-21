@@ -21,14 +21,39 @@ import IconStar from "@/icons/star.svg"
 import { getModelTitleTransitionName } from "@/lib/view-transitions"
 import { useTranslations, type Lang } from "@/i18n/ui"
 import { useCaseLabel } from "@/i18n/useCases"
+import { getRelativeLocaleUrl } from "astro:i18n"
 
 interface Props {
   deviceKey?: string
   lang?: Lang
+  /**
+   * "full" is the whole catalog with the filter bar — what /models and
+   * /device/[id] render. "picks" drops the filter bar and instead groups the
+   * top few runnable models per intent, which is what the home page shows.
+   * Every row is still rendered in both modes: grading happens client-side
+   * against detected hardware, so the picker needs the full set in the DOM.
+   */
+  variant?: "full" | "picks"
 }
 
-const { deviceKey, lang = (Astro.currentLocale as Lang) ?? "th" } = Astro.props
+const {
+  deviceKey,
+  lang = (Astro.currentLocale as Lang) ?? "th",
+  variant = "full",
+} = Astro.props
 const t = useTranslations(lang)
+const isPicks = variant === "picks"
+const catalogUrl = getRelativeLocaleUrl(lang, "models")
+
+// Ordered most-specific first: a model lands in the first group that claims it,
+// so vision and coding models are not swallowed by the broad "chat" tag they
+// almost all also carry.
+const PICK_GROUPS = [
+  { tag: "vision", label: t("picks.vision") },
+  { tag: "code", label: t("picks.code") },
+  { tag: "reasoning", label: t("picks.reasoning") },
+  { tag: "chat", label: t("picks.chat") },
+]
 
 const hfStatsTyped = hfStats as Record<
   string,
@@ -116,6 +141,7 @@ function ctxLabel(n: number): string {
   id="results"
   class="mx-auto max-w-6xl px-4 pb-20 pt-10 sm:px-6"
   data-device-key={deviceKey}
+  data-variant={variant}
   data-i18n={JSON.stringify(scriptI18n)}
 >
   <!-- Page-specific header -->
@@ -327,7 +353,7 @@ function ctxLabel(n: number): string {
   </div>
 
   <!-- Search + Filters bar (single line) -->
-  <div class="mb-6 flex flex-wrap items-center gap-2">
+  <div class="mb-6 flex flex-wrap items-center gap-2" hidden={isPicks}>
     <!-- Search -->
     <div class="relative flex-1 min-w-[180px] max-w-xs">
       <IconSearch
@@ -393,44 +419,41 @@ function ctxLabel(n: number): string {
     </select>
   </div>
 
-  <!-- Ruler section: the shared scale + "your machine" capacity row + model rows -->
+  <!-- Ruler section: model rows measured against your machine's capacity.
+       The capacity itself is drawn per row by .nd-track::after (the accent line),
+       so no separate scale axis or "your machine" reference row is needed. -->
   <section id="model-ruler" aria-label="Compare model size against your machine's capacity">
-    <div class="nd-scale" aria-hidden="true">
-      <span></span>
-      <div class="nd-scale-track">
-        <span class="nd-scale-tick" style="--at: 0%" data-ruler-tick>0</span>
-        <span class="nd-scale-tick" style="--at: 25%" data-ruler-tick></span>
-        <span class="nd-scale-tick" style="--at: 50%" data-ruler-tick></span>
-        <span class="nd-scale-tick" style="--at: 75%" data-ruler-tick></span>
-        <span class="nd-scale-tick nd-scale-tick-end" style="--at: 100%" data-ruler-tick></span>
-      </div>
-      <span></span>
-      <span></span>
-      <span></span>
-    </div>
-
-    <div class="nd-row nd-row-you">
-      <div class="nd-row-grade"></div>
-      <div class="nd-row-name">
-        <span class="nd-row-title">{t("modelList.yourMachine")}</span>
-        <span class="nd-row-meta" id="nd-cap-meta">{t("modelList.detectingHardware")}</span>
-      </div>
-      <div class="nd-track nd-track-you">
-        <div class="nd-bar nd-bar-you" id="nd-cap-bar"></div>
-        <span class="nd-limit-tag" id="nd-limit-tag"></span>
-      </div>
-      <div class="nd-row-num"></div>
-      <div class="nd-row-speed"></div>
-      <div class="nd-row-chip"></div>
-    </div>
-
     <p class="nd-help">
-      {t("modelList.rulerHelp1")}
+      <b class="nd-help-label">{t("modelList.yourMachine")}</b>
+      <span id="nd-cap-meta">{t("modelList.detectingHardware")}</span>
+      <span class="nd-help-dot">·</span>
       {t("modelList.rulerHelp2")}
     </p>
 
+    {isPicks && (
+      <div id="nd-picks">
+        {PICK_GROUPS.map((g) => (
+          <section class="nd-pick-group" data-pick-group={g.tag}>
+            <div class="nd-pick-head">
+              <h2 class="nd-pick-title">{g.label}</h2>
+              <a class="nd-pick-more" href={`${catalogUrl}?use=${g.tag}`}>
+                {t("picks.seeAll")} →
+              </a>
+            </div>
+            <div class="nd-list" data-pick-list />
+            <p class="nd-pick-empty" hidden>{t("picks.empty")}</p>
+          </section>
+        ))}
+
+        <a class="nd-browse-all" href={catalogUrl}>
+          <span class="nd-browse-all-label">{t("picks.browseAll")} →</span>
+          <span class="nd-browse-all-hint">{t("picks.browseAllHint")}</span>
+        </a>
+      </div>
+    )}
+
     <!-- Popular models -->
-    <div id="models-grid" class="nd-list">
+    <div id="models-grid" class="nd-list" hidden={isPicks}>
       {
         featuredModels.map((model) => (
           <a href={`/model/${model.id}`} class="nd-row-link block">
@@ -489,16 +512,15 @@ function ctxLabel(n: number): string {
                     </i>
                   </span>
                 </span>
-                <span class="nd-row-meta">
-                  {model.provider} · {model.params}
-                  {model.architecture === "moe"
-                    ? ` (active ${getActiveParamsBillions(model).toFixed(0)}B)`
-                    : ""}{" "}
-                  · {useCaseLabel(model.useCase, lang)} · ctx {ctxLabel(model.contextLength)} ·{" "}
-                  {model.architecture === "moe" ? "MoE" : "Dense"}
-                  <span data-mem-pct />
-                </span>
-                <div class="nd-row-pills">
+                <div class="nd-row-facts">
+                  <span class="nd-row-meta">
+                    {model.provider} · {model.params}
+                    {model.architecture === "moe"
+                      ? ` (active ${getActiveParamsBillions(model).toFixed(0)}B)`
+                      : ""}{" "}
+                    · {useCaseLabel(model.useCase, lang)} · ctx {ctxLabel(model.contextLength)}
+                  </span>
+                  <span class="nd-fact-mem" data-mem-pct />
                   {model.releaseDate && (
                     <span class="nd-pill nd-pill-release">🕓 {timeAgo(model.releaseDate)}</span>
                   )}
@@ -510,17 +532,19 @@ function ctxLabel(n: number): string {
                       {model.license}
                     </span>
                   )}
-                </div>
-                <div class="nd-quants">
-                  {model.quants.map((q, i) => (
-                    <button
-                      type="button"
-                      data-quant-btn={i}
-                      class:list={["nd-quant-btn", { "is-active": i === 2 }]}
-                    >
-                      {q.name}
-                    </button>
-                  ))}
+                  <span class="nd-quant-slot">
+                    <span class="nd-quants">
+                      {model.quants.map((q, i) => (
+                        <button
+                          type="button"
+                          data-quant-btn={i}
+                          class:list={["nd-quant-btn", { "is-active": i === 2 }]}
+                        >
+                          {q.name}
+                        </button>
+                      ))}
+                    </span>
+                  </span>
                 </div>
               </div>
 
@@ -541,14 +565,14 @@ function ctxLabel(n: number): string {
     </div>
 
     <!-- Section divider -->
-    <div id="rest-divider" class="my-8 flex items-center gap-4">
+    <div id="rest-divider" class="my-8 flex items-center gap-4" hidden={isPicks}>
       <div class="h-px flex-1 bg-edge/30"></div>
       <span class="font-mono text-[13px] text-muted/60">{t("modelList.allModelsDivider")}</span>
       <div class="h-px flex-1 bg-edge/30"></div>
     </div>
 
     <!-- Rest of models -->
-    <div id="models-grid-rest" class="nd-list">
+    <div id="models-grid-rest" class="nd-list" hidden={isPicks}>
       {
         otherModels.map((model) => (
           <a href={`/model/${model.id}`} class="nd-row-link block">
@@ -603,16 +627,15 @@ function ctxLabel(n: number): string {
                     )}
                   </span>
                 </span>
-                <span class="nd-row-meta">
-                  {model.provider} · {model.params}
-                  {model.architecture === "moe"
-                    ? ` (active ${getActiveParamsBillions(model).toFixed(0)}B)`
-                    : ""}{" "}
-                  · {useCaseLabel(model.useCase, lang)} · ctx {ctxLabel(model.contextLength)} ·{" "}
-                  {model.architecture === "moe" ? "MoE" : "Dense"}
-                  <span data-mem-pct />
-                </span>
-                <div class="nd-row-pills">
+                <div class="nd-row-facts">
+                  <span class="nd-row-meta">
+                    {model.provider} · {model.params}
+                    {model.architecture === "moe"
+                      ? ` (active ${getActiveParamsBillions(model).toFixed(0)}B)`
+                      : ""}{" "}
+                    · {useCaseLabel(model.useCase, lang)} · ctx {ctxLabel(model.contextLength)}
+                  </span>
+                  <span class="nd-fact-mem" data-mem-pct />
                   {model.releaseDate && (
                     <span class="nd-pill nd-pill-release">🕓 {timeAgo(model.releaseDate)}</span>
                   )}
@@ -624,17 +647,19 @@ function ctxLabel(n: number): string {
                       {model.license}
                     </span>
                   )}
-                </div>
-                <div class="nd-quants">
-                  {model.quants.map((q, i) => (
-                    <button
-                      type="button"
-                      data-quant-btn={i}
-                      class:list={["nd-quant-btn", { "is-active": i === 2 }]}
-                    >
-                      {q.name}
-                    </button>
-                  ))}
+                  <span class="nd-quant-slot">
+                    <span class="nd-quants">
+                      {model.quants.map((q, i) => (
+                        <button
+                          type="button"
+                          data-quant-btn={i}
+                          class:list={["nd-quant-btn", { "is-active": i === 2 }]}
+                        >
+                          {q.name}
+                        </button>
+                      ))}
+                    </span>
+                  </span>
                 </div>
               </div>
 
@@ -850,17 +875,6 @@ function ctxLabel(n: number): string {
     })
   }
 
-  function updateRulerTicks(rulerMax: number) {
-    const ticks = $$("[data-ruler-tick]")
-    const fractions = [0, 0.25, 0.5, 0.75, 1]
-    ticks.forEach((tick, i) => {
-      const frac = fractions[i]
-      if (frac === undefined) return
-      const val = Math.round(rulerMax * frac)
-      tick.textContent = frac === 1 ? `${val} GB` : String(val)
-    })
-  }
-
   function populateDeviceSelect(
     select: HTMLSelectElement,
     detectedName: string,
@@ -1018,15 +1032,10 @@ function ctxLabel(n: number): string {
     currentUsable = usable
     const rulerMax = rulerMaxFor(usable)
     currentRulerMax = rulerMax
-    updateRulerTicks(rulerMax)
 
     const limitPct = Math.min(usable / rulerMax, 1) * 100
     const ruler = $("#model-ruler")
     if (ruler) ruler.style.setProperty("--limit", `${limitPct}%`)
-    const capBar = $("#nd-cap-bar")
-    if (capBar) capBar.style.width = `${limitPct}%`
-    const limitTag = $("#nd-limit-tag")
-    if (limitTag) limitTag.textContent = `${usable} GB`
     const capMeta = $("#nd-cap-meta")
     if (capMeta) capMeta.textContent = capacityMetaText(hw, usable)
   }
@@ -1047,7 +1056,12 @@ function ctxLabel(n: number): string {
       currentHW = { ...detectedHW }
       updateHardwarePanel(currentHW)
       updateAllRows(currentHW)
-      history.pushState({}, "", `/${qs}`)
+      // Resetting to auto-detect leaves a /device/ page for that locale's home;
+      // anywhere else (/, /models, /en/models) the visitor stays put.
+      const path = window.location.pathname
+      const localeHome = path.startsWith("/en/") ? "/en/" : "/"
+      const target = /^\/(en\/)?device\//.test(path) ? localeHome : path
+      history.pushState({}, "", `${target}${qs}`)
       return
     }
 
@@ -1181,7 +1195,7 @@ function ctxLabel(n: number): string {
     if (memEl) {
       if (memPct !== null) {
         memEl.textContent =
-          status === "can-run-slow" ? ` · ${memPct}% ↗ RAM` : ` · ${memPct}% mem`
+          status === "can-run-slow" ? `${memPct}% ↗ RAM` : `${memPct}% mem`
         memEl.style.color =
           status === "can-run-slow"
             ? "var(--color-offload)"
@@ -1208,6 +1222,7 @@ function ctxLabel(n: number): string {
     updateSummary()
     updateVerdict()
     sortAndAnimateRows()
+    renderPicks()
   }
 
   function updateSummary() {
@@ -1251,9 +1266,103 @@ function ctxLabel(n: number): string {
     }
   }
 
+  // ── Best picks (home page) ───────────────────────────────
+
+  const PICK_LIMIT = 3
+
+  function picksRoot(): HTMLElement | null {
+    return $("#nd-picks")
+  }
+
+  // renderPicks() moves <a> rows out of the two source grids into the group
+  // lists. Sorting, filtering and the grade counts all read from those grids,
+  // so every pass has to put the rows back first. The home grid is recorded on
+  // the first pass, while nothing has moved yet.
+  function restoreRowsHome() {
+    const featured = $("#models-grid")
+    const rest = $("#models-grid-rest")
+    if (!featured || !rest) return
+
+    $$<HTMLAnchorElement>("a.nd-row-link").forEach((link) => {
+      if (!link.dataset.homeGrid) {
+        link.dataset.homeGrid =
+          link.parentElement === featured ? "featured" : "rest"
+      }
+      const home = link.dataset.homeGrid === "featured" ? featured : rest
+      if (link.parentElement !== home) home.appendChild(link)
+    })
+  }
+
+  function renderPicks() {
+    const root = picksRoot()
+    if (!root) return
+
+    // A model belongs to one group only, and the groups are ordered
+    // most-specific first in the template, so vision and coding models are not
+    // swallowed by the broad "chat" tag nearly all of them also carry.
+    const used = new Set<string>()
+
+    root.querySelectorAll<HTMLElement>("[data-pick-group]").forEach((group) => {
+      const tag = group.dataset.pickGroup || ""
+      const list = group.querySelector<HTMLElement>("[data-pick-list]")
+      const empty = group.querySelector<HTMLElement>(".nd-pick-empty")
+      if (!list) return
+
+      const picked = $$<HTMLAnchorElement>(
+        "#models-grid > a, #models-grid-rest > a",
+      )
+        .filter((link) => {
+          const row = link.querySelector<HTMLElement>("[data-model-id]")
+          if (!row) return false
+          if (used.has(row.dataset.modelId || "")) return false
+          if (!(row.dataset.uses || "").split(",").includes(tag)) return false
+          const status = row.dataset.status
+          return status === "can-run" || status === "tight"
+        })
+        // Rank by capability, not by score. computeScore() measures how
+        // *comfortably* a model runs, so sorting by it puts TinyLlama 1.1B above
+        // Llama 3.1 8B on a 16GB Mac — the opposite of a recommendation. The
+        // fit test above has already thrown out anything that does not run, so
+        // among survivors the biggest model is the best answer: prefer
+        // can-run over tight, then most parameters, then score as a tie-break.
+        .sort((a, b) => {
+          const rowA = a.querySelector<HTMLElement>("[data-model-id]")
+          const rowB = b.querySelector<HTMLElement>("[data-model-id]")
+          const fit = (r: HTMLElement | null) =>
+            r?.dataset.status === "can-run" ? 0 : 1
+          const fitDiff = fit(rowA) - fit(rowB)
+          if (fitDiff !== 0) return fitDiff
+          const pa = parseFloat(rowA?.dataset.params || "0")
+          const pb = parseFloat(rowB?.dataset.params || "0")
+          if (pa !== pb) return pb - pa
+          return (
+            parseInt(rowB?.dataset.score || "0") -
+            parseInt(rowA?.dataset.score || "0")
+          )
+        })
+        .slice(0, PICK_LIMIT)
+
+      picked.forEach((link, i) => {
+        const row = link.querySelector<HTMLElement>("[data-model-id]")
+        if (row) {
+          used.add(row.dataset.modelId || "")
+          row.style.animationDelay = `${i * 25}ms`
+          row.classList.add("fade-in")
+        }
+        link.style.display = ""
+        list.appendChild(link)
+      })
+
+      list.hidden = picked.length === 0
+      if (empty) empty.hidden = picked.length > 0
+    })
+  }
+
   let currentSort = "score"
 
   function sortAndAnimateRows() {
+    restoreRowsHome()
+
     const order: Record<string, number> = {
       "can-run": 0,
       tight: 1,
@@ -1845,7 +1954,7 @@ function ctxLabel(n: number): string {
     setupLicenseLinks()
     setupPopstate()
     setupSpeedPreview()
-    applyFilters()
+    if (!picksRoot()) applyFilters()
     init()
   })
 </script>
@@ -1913,35 +2022,11 @@ function ctxLabel(n: number): string {
 
   /* ── Ruler + rows ───────────────────────────────────── */
 
-  .nd-scale,
   .nd-row {
     display: grid;
-    grid-template-columns: 26px minmax(200px, 1.7fr) minmax(0, 2.1fr) 66px 62px 76px;
+    grid-template-columns: 26px minmax(220px, 2.4fr) minmax(0, 1.5fr) 66px 62px 76px;
     gap: 12px;
     align-items: center;
-  }
-
-  .nd-scale {
-    padding-bottom: 6px;
-  }
-
-  .nd-scale-track {
-    position: relative;
-    height: 13px;
-  }
-
-  .nd-scale-tick {
-    position: absolute;
-    left: var(--at);
-    transform: translateX(-50%);
-    font-family: var(--font-mono);
-    font-size: 10.5px;
-    color: var(--color-muted);
-    white-space: nowrap;
-  }
-
-  .nd-scale-tick-end {
-    transform: translateX(-100%);
   }
 
   .nd-row-link {
@@ -1956,11 +2041,6 @@ function ctxLabel(n: number): string {
 
   .nd-row-link:hover .nd-row {
     background-color: var(--color-surface-hover);
-  }
-
-  .nd-row-you {
-    border-top: 1px solid var(--color-secondary);
-    padding: 13px 0;
   }
 
   .nd-grade {
@@ -2015,7 +2095,21 @@ function ctxLabel(n: number): string {
     border-color: color-mix(in srgb, var(--color-maybe) 45%, transparent);
   }
 
+  /* One line holding everything below the model name. Deliberately nowrap: the
+     meta text is the only shrinkable item, so the pills can never be clipped the
+     way the release date was before it got its own row (2026-08-19). */
+  .nd-row-facts {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 5px;
+    margin-top: 3px;
+    min-width: 0;
+  }
+
   .nd-row-meta {
+    flex: 0 1 auto;
+    min-width: 3ch;
     font-size: 11px;
     color: var(--color-muted);
     line-height: 1.45;
@@ -2024,15 +2118,19 @@ function ctxLabel(n: number): string {
     white-space: nowrap;
   }
 
-  .nd-row-pills {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 3px;
-    margin-top: 2px;
+  .nd-fact-mem {
+    flex: none;
+    font-size: 11px;
+    line-height: 1.45;
+    white-space: nowrap;
+  }
+
+  .nd-fact-mem:empty {
+    display: none;
   }
 
   .nd-pill {
+    flex: none;
     display: inline-flex;
     align-items: center;
     gap: 3px;
@@ -2067,11 +2165,19 @@ function ctxLabel(n: number): string {
     transition: transform 0.1s ease-out;
   }
 
+  /* The slot keeps the resting width (one chip) in the fact line; the strip
+     inside it lifts out of flow on hover, so expanding to all seven levels can
+     never reflow the line or shift the rows below. */
+  .nd-quant-slot {
+    position: relative;
+    flex: none;
+    display: inline-flex;
+  }
+
   .nd-quants {
-    display: flex;
+    display: inline-flex;
     flex-wrap: wrap;
     gap: 3px;
-    margin-top: 2px;
   }
 
   .nd-quant-btn {
@@ -2096,15 +2202,44 @@ function ctxLabel(n: number): string {
     background: color-mix(in srgb, var(--color-accent) 10%, transparent);
   }
 
+  /* On a pointer that can hover, show only the selected quant at rest — seven
+     buttons on every one of 109 rows is the single densest thing on the page.
+     Expanding anchors to the slot's right edge so the strip grows leftward and
+     stays inside the name column instead of covering the memory bar. Gated on
+     min-width too: below the 900px breakpoint the fact line wraps and the whole
+     strip is shown inline, so a narrow desktop window behaves like a phone
+     rather than getting a popover it has no room for. */
+  @media (hover: hover) and (pointer: fine) and (min-width: 901px) {
+    .nd-quant-btn:not(.is-active) {
+      display: none;
+    }
+
+    .nd-row-link:hover .nd-quants,
+    .nd-row:focus-within .nd-quants {
+      position: absolute;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 20;
+      flex-wrap: nowrap;
+      padding: 2px 3px;
+      border-radius: 5px;
+      border: 1px solid var(--color-edge);
+      background: var(--color-surface-card);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+    }
+
+    .nd-row-link:hover .nd-quant-btn,
+    .nd-row:focus-within .nd-quant-btn {
+      display: inline-block;
+    }
+  }
+
   .nd-track {
     position: relative;
     height: 22px;
     background: color-mix(in srgb, var(--color-surface-raised) 80%, transparent);
     border-radius: 3px;
-  }
-
-  .nd-track-you {
-    height: 30px;
   }
 
   .nd-track::after {
@@ -2125,10 +2260,6 @@ function ctxLabel(n: number): string {
     border-radius: 3px;
     background: var(--color-muted);
     transition: width 0.45s cubic-bezier(0.22, 0.9, 0.3, 1);
-  }
-
-  .nd-bar-you {
-    background: color-mix(in srgb, var(--color-primary) 88%, transparent);
   }
 
   .nd-row[data-status="can-run"] .nd-bar {
@@ -2164,18 +2295,6 @@ function ctxLabel(n: number): string {
     z-index: 3;
   }
 
-  .nd-limit-tag {
-    position: absolute;
-    left: var(--limit, 33.33%);
-    top: 50%;
-    transform: translate(9px, -50%);
-    z-index: 3;
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--color-accent);
-    white-space: nowrap;
-  }
-
   .nd-row-num,
   .nd-row-speed {
     font-family: var(--font-mono);
@@ -2208,16 +2327,101 @@ function ctxLabel(n: number): string {
   }
 
   .nd-help {
-    margin: 16px 0 20px;
-    font-size: 12.5px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 6px;
+    margin: 10px 0 12px;
+    font-size: 11.5px;
+    line-height: 1.5;
     color: var(--color-muted);
-    max-width: 78ch;
+  }
+
+  .nd-help-label {
+    font-weight: 600;
+    color: var(--color-secondary);
+  }
+
+  .nd-help-dot {
+    color: var(--color-edge);
   }
 
   .nd-list {
     border: 1px solid var(--color-edge);
     border-radius: 8px;
     overflow: hidden;
+  }
+
+  /* ── Best picks (home page) ──────────────────────────── */
+
+  #nd-picks {
+    margin-top: 22px;
+  }
+
+  .nd-pick-group {
+    margin-bottom: 26px;
+  }
+
+  .nd-pick-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 7px;
+  }
+
+  .nd-pick-title {
+    font-family: var(--font-pixel);
+    font-size: 15px;
+    color: var(--color-primary);
+  }
+
+  .nd-pick-more {
+    flex: none;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: var(--color-muted);
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+
+  .nd-pick-more:hover {
+    color: var(--color-accent);
+  }
+
+  .nd-pick-empty {
+    padding: 12px 2px;
+    font-size: 12px;
+    color: var(--color-muted);
+  }
+
+  .nd-browse-all {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 4px;
+    padding: 12px;
+    border: 1px dashed var(--color-edge);
+    border-radius: 8px;
+    text-decoration: none;
+    transition: border-color 0.15s, background-color 0.15s;
+  }
+
+  .nd-browse-all:hover {
+    border-color: var(--color-accent);
+    background-color: var(--color-surface-hover);
+  }
+
+  .nd-browse-all-label {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--color-accent);
+  }
+
+  .nd-browse-all-hint {
+    font-size: 11.5px;
+    color: var(--color-muted);
   }
 
   .nd-list > .nd-row-link:first-child .nd-row {
@@ -2230,8 +2434,8 @@ function ctxLabel(n: number): string {
   }
 
   @media (max-width: 900px) {
-    .nd-scale {
-      display: none;
+    .nd-row-facts {
+      flex-wrap: wrap;
     }
 
     .nd-row {
@@ -2266,10 +2470,6 @@ function ctxLabel(n: number): string {
     .nd-track::after {
       top: 0;
       bottom: 0;
-    }
-
-    .nd-limit-tag {
-      display: none;
     }
   }
 

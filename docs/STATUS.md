@@ -1,14 +1,143 @@
 # AiNaiDee — project status
 
-**Last updated: 2026-08-17.** Start here when picking the project back up.
+**Last updated: 2026-08-21.** Start here when picking the project back up.
 
 ---
 
-## ⚠️ Resume here — everything pushed and deployed, one open problem left unfixed on purpose
+## ⚠️ Resume here — home page split into best-picks + /models, rows halved in height
 
-**Nothing is pending.** `main` is pushed to `origin` and production is live on `5e810da`. Working
-tree is clean except the same three untracked files as always (see bottom of this section) — `git
-status` confirms.
+This session (2026-08-21) rebuilt the model list's information density after kovit compared the
+site against upstream's redesigned `canirun.ai` and judged ours cluttered. Comparing both live at
+1440px confirmed it, and the cause was measurable rather than a matter of taste: our row was four
+sub-rows tall to upstream's one, we drew 7 quant buttons on every one of 109 rows (763 buttons),
+and ~150px of ruler chrome sat between the filter bar and the first model.
+
+Upstream's own fix (commit `8d7b1be`, +2416/-464 in their `ModelListContent.astro`) was *not* to
+show less per row but to **split the page**: `/` became a curated best-picks view with no filter
+bar, `/models` the full catalog. This session ported that idea, not their diff — our component has
+diverged too far for their patch to apply.
+
+Three changes, in order:
+
+1. **Collapsed the quant strip and cut the ruler header.** At rest each row shows only the selected
+   quant (`Q4_K_M`); hovering reveals all seven. Measured in-page first: the full strip is 228px
+   inside what was then a 353px name column, so it stays on one line and the active button already
+   holds that line box — expansion costs **zero layout shift**. Uses `display: none` rather than a
+   width transition, because collapsed buttons otherwise leave 1px borders and flex gaps behind
+   (~32px of dead space per row). Gated on `@media (hover: hover) and (pointer: fine)` so coarse
+   pointers, which have no hover to reveal it with, keep the whole strip.
+   The tick axis, the "your machine" reference row and the two-line help paragraph were deleted
+   outright — **the accent capacity line is already drawn per row** by `.nd-track::after`, so the
+   reference row was redundant. What remains is one 17px line carrying the capacity text and the
+   orange-line explanation. `updateRulerTicks()`, the `nd-cap-bar`/`nd-limit-tag` lookups and the
+   `rulerHelp1` i18n key went with it.
+
+2. **Merged the meta line, the pills and the quant chip into one `.nd-row-facts` line.** Row height
+   went **99.09px → 59.89px (-39%)**, verified by measurement, not by eye. The line is deliberately
+   `flex-wrap: nowrap` with the meta text as the *only* shrinkable item and every pill
+   `flex: none` — this is what keeps the 2026-08-19 clipping bug from coming back: pills can never
+   be truncated, only the meta text ellipsises. `Dense`/`MoE` was dropped from the meta (the title
+   already carries a MoE icon); `% mem` was **kept** and moved out of the truncating span, because
+   under CPU offload it renders `48% ↗ RAM` with a warning colour that the bar cannot express.
+   The name column grew `1.7fr → 2.4fr` and the track shrank `2.1fr → 1.5fr`.
+   Hover expansion no longer fits inline at this width (44px → 284px), so the strip lifts out of
+   flow into a popover anchored to the slot's **right** edge, growing leftward. Verified it stays
+   inside the name column (390–674 within 234–719), is not clipped by `.nd-list`'s
+   `overflow: hidden`, and still shifts nothing. Below 901px there is no popover: the fact line
+   wraps and the whole strip shows inline.
+
+3. **Split `/` from `/models`.** `ModelListContent` took a `variant?: "full" | "picks"` prop.
+   `picks` hides the filter bar and the two source grids and instead fills four intent groups —
+   "Can I run vision / coding / reasoning / chat models?" — with three rows each; `full` is
+   unchanged and is what `/models`, `/en/models` and `/device/[id]` render. Every row is still
+   rendered in both modes because grading happens client-side, so the picker needs the full set in
+   the DOM.
+
+   **The non-obvious part is the ranking.** Sorting picks by `score` produced TinyLlama 1.1B and
+   Llama 3.2 1B at the top — `computeScore()` measures how *comfortably* a model runs, which is the
+   opposite of a recommendation. The fit test has already discarded anything that does not run, so
+   among survivors the **biggest** model is the right answer: prefer `can-run` over `tight`, then
+   most parameters, then score as a tie-break. On an M4/16GB that yields Gemma 3 12B, Phi-4 14B,
+   Qwen 2.5 14B and OpenThaiGPT 1.5 14B — and Thai models surface on the home page without being
+   special-cased. Groups are ordered vision → code → reasoning → chat and a model is claimed by the
+   first group that matches, because nearly every model also carries the broad `chat` tag and a
+   different order swallows the specific categories.
+
+   `renderPicks()` moves `<a>` rows out of the source grids, so `restoreRowsHome()` puts them all
+   back at the top of every `sortAndAnimateRows()` pass — sorting, filtering and the grade counts
+   all read from those grids and would otherwise see a partial set.
+
+**Two latent bugs fixed on the way**, both harmless while the site had one list page and both live
+the moment it had two:
+
+- `NavHeader`'s wordmark linked to a hardcoded `/`, dropping English visitors onto the Thai home
+  page. Now `getRelativeLocaleUrl(lang, "/")`.
+- `handleDeviceChange()` pushed a hardcoded `/` when resetting to auto-detect, which would have
+  thrown a visitor on `/models` back to the home page. Now only `/device/*` leaves for the locale
+  home; every other route stays put.
+
+**Verified**: `pnpm check` 0 errors, `pnpm test` 210/210, `pnpm build` clean and emitting
+`dist/client/models/` + `dist/client/en/models/`, both in the sitemap, hreflang th/en resolving on
+both, the language switcher crossing `/models` ↔ `/en/models`, filters still working on `/models`
+(`?use=code` → 47 of 109), `/device/a100` still rendering `variant="full"`, and the GA tag present
+twice on each new page per `CLAUDE.local.md`.
+
+**OneDrive damage hit twice this session** and cost more time than the code did. First
+`node_modules` went hollow — files present in metadata, contents unreadable (`head: Error reading
+node_modules/.bin/astro`, pnpm throwing `ETIMEDOUT` out of `readFileSync`) — repaired with
+`rm -rf node_modules packages/*/node_modules && CI=true pnpm install` (52s to delete, 6.2s to
+reinstall), and `packages/*/dist` had to be deleted too because `tsc` could not overwrite it.
+Then **`Dockerfile` itself became unreadable** while carrying an uncommitted modification, so that
+change is unrecoverable and the file was left untouched rather than committed broken. This is the
+concrete cost CLAUDE.md's "move the working copy out of OneDrive" note keeps warning about.
+
+---
+
+## Previous session — everything pushed and deployed, one thing surveyed but not ported
+
+**Nothing is pending from this session's work.** `main` is pushed to `origin` and production is
+live on `e8d0b98`. Working tree has the same untracked files as always (see bottom of this
+section) — `git status` confirms.
+
+This session (2026-08-19), in order:
+
+1. **Fixed release date being invisible when sorting the model list by "newest."** The date was
+   computed correctly (`timeAgo()`) but appended to the end of a `white-space: nowrap` truncating
+   meta line, so it was clipped on almost every row before ever being seen (confirmed live on
+   production: `"... · MIT · 2…"`). Redesigned: release date and license now get their own
+   always-visible pill row (`.nd-row-pills` / `.nd-pill` in `ModelListContent.astro`), styled with
+   the same `color-mix(--color-accent ...)` treatment the existing quant-button active state
+   already uses, rather than inventing a new visual language. Verified in dev at both desktop and
+   420px mobile widths.
+2. **Surveyed upstream `midudev/canirun.ai` for what's new**, compared directly via `gh api`
+   against commit history rather than guessing. Found two 2026-08-18 upstream changes not yet in
+   this fork: 9 new Qwen model families, and sessionStorage-based filter persistence across page
+   navigation. Confirmed several other recent upstream fixes were already ported in a prior
+   session (MoE CPU-offload token-speed bug, Tesla GPU category regex, GLM-5.2, Ornith 1.0,
+   DiffusionGemma) — nothing to do there.
+3. **Ported the 9 new Qwen models** (`packages/models/src/index.ts`) — Qwen 3.6 27B/35B-A3B, 3.8
+   27B, VL 8B/30B-A3B/235B-A22B, Coder 30B-A3B, Next 80B-A3B, Coder Next 80B-A3B. Catalog is now
+   **109 models**, up from 100. Straightforward additive entries, same schema, inserted at the same
+   size-sorted positions as upstream's diff. No duplicate ids.
+4. **sessionStorage filter persistence — surveyed, not ported.** Upstream's diff doesn't apply
+   cleanly: our `ModelListContent.astro` has diverged structurally from upstream's (different
+   function names, no `applyViewMode`/`updateAllCards`). Porting means re-implementing the
+   read/write around our own `readFiltersFromURL`/`syncFiltersToURL`, not a copy-paste. Left for a
+   future session.
+5. **Committed and deployed** (`e8d0b98`) — pushed to `origin/main`, then `scripts/deploy.sh` run
+   against `imperva@172.16.57.192`. Build ~8min (native deps, as usual), smoke-tested, swapped
+   clean. Verified live: `https://www.ainaidee.com/api/models` returns 109 models. Previous version
+   backed up server-side at `ainaidee_backup_20260819_143254`.
+
+**Non-obvious gotcha hit this session, worth knowing for next time**: `imperva@172.16.57.192` is a
+private/LAN address, not reachable from the open internet. The first deploy attempt hung and then
+failed with `ssh: ... Operation timed out` simply because the dev Mac wasn't on VPN/the office LAN
+yet — nothing wrong with the server or the script. Check reachability first
+(`nc -zv -w5 172.16.57.192 22`) before assuming a deploy failure means something's actually broken.
+
+---
+
+## 16 Thai/SEA models added, "About this model" fix, deploy speed investigation — 2026-08-17
 
 This session (2026-08-17), in order:
 
