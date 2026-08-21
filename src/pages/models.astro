@@ -1,0 +1,44 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import NavHeader from "@/components/NavHeader.astro";
+import ModelListContent from "@/components/ModelListContent.astro";
+import { useTranslations } from "@/i18n/ui";
+import { models } from "@/data/models";
+
+const t = useTranslations("th");
+---
+
+<Layout
+  lang="th"
+  locale="th_TH"
+  hasTranslation={true}
+  title={t("catalog.metaTitle")}
+  description={t("catalog.metaDescription")}
+>
+  <Fragment slot="head">
+    <script type="application/ld+json" set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "CollectionPage",
+      "name": t("catalog.title"),
+      "url": new URL("/models", Astro.site).href,
+      "description": t("catalog.metaDescription"),
+      "inLanguage": "th",
+      "isPartOf": { "@type": "WebSite", "name": "AiNaiDee", "url": new URL("/", Astro.site).href },
+      "mainEntity": {
+        "@type": "ItemList",
+        "numberOfItems": models.length,
+      }
+    })}></script>
+  </Fragment>
+  <NavHeader lang="th" hasTranslation={true} />
+  <ModelListContent lang="th" variant="full">
+    <header slot="header" class="mb-10 text-center">
+      <h1 class="font-pixel text-3xl tracking-tight text-accent sm:text-4xl">
+        {t("catalog.title")}
+      </h1>
+      <p class="mt-2 text-base text-muted">
+        {t("catalog.subtitle")}
+      </p>
+    </header>
+  </ModelListContent>
+</Layout>

@@ -9,6 +9,7 @@ export const defaultLang: Lang = "th";
 export const ui = {
   th: {
     nav: {
+      models: "โมเดลทั้งหมด",
       playground: "Playground",
       compare: "เปรียบเทียบ",
       tier: "อันดับโมเดล",
@@ -38,6 +39,23 @@ export const ui = {
     home: {
       title: "เครื่องคุณรัน AI ตัวไหนได้บ้าง?",
       subtitle: "ตรวจดูว่าเครื่องของคุณรันโมเดล AI ตัวไหนได้จริง",
+    },
+    catalog: {
+      title: "โมเดล AI ที่รันเองได้",
+      subtitle: "ค้นทั้งแคตตาล็อก จัดเกรดตาม GPU, Mac หรือเครื่องที่คุณเลือก",
+      metaTitle: "โมเดล AI ที่รันเองได้ทั้งหมด — AiNaiDee",
+      metaDescription:
+        "แคตตาล็อกโมเดล AI แบบเปิดทั้งหมด กรองตามงาน ผู้พัฒนา และสัญญาอนุญาต พร้อมเกรดตามเครื่องของคุณ",
+    },
+    picks: {
+      code: "รันโมเดลเขียนโค้ดได้ไหม?",
+      chat: "รันโมเดลคุยทั่วไปได้ไหม?",
+      reasoning: "รันโมเดลคิดวิเคราะห์ได้ไหม?",
+      vision: "รันโมเดลดูรูปได้ไหม?",
+      seeAll: "ดูทั้งหมด",
+      empty: "เครื่องนี้ยังไม่มีตัวไหนรันได้สบายในหมวดนี้",
+      browseAll: "ดูแคตตาล็อกทั้งหมด",
+      browseAllHint: "อยากกรองเองแบบละเอียด",
     },
     modelList: {
       verdictEyebrow: "จากฮาร์ดแวร์ที่ตรวจพบ",
@@ -99,7 +117,6 @@ export const ui = {
       sortDownloads: "เรียง: ความนิยม",
       yourMachine: "เครื่องของคุณ",
       detectingHardware: "กำลังตรวจฮาร์ดแวร์…",
-      rulerHelp1: "แต่ละแถบคือหน่วยความจำที่โมเดลต้องใช้ที่ระดับบีบอัด Q4_K_M วัดบนไม้บรรทัดเดียวกันทั้งหน้า",
       rulerHelp2: "แถบที่หยุดก่อนเส้นสีส้มคือรันได้สบาย ส่วนที่ล้ำเส้นออกไปต้องยืม RAM ระบบมาช่วย ซึ่งช้าลงมาก",
       tagTool: "เรียกใช้เครื่องมือได้",
       tagThinking: "คิดวิเคราะห์",
@@ -126,6 +143,7 @@ export const ui = {
   },
   en: {
     nav: {
+      models: "All models",
       playground: "Playground",
       compare: "Compare",
       tier: "Tier List",
@@ -153,6 +171,23 @@ export const ui = {
     home: {
       title: "Which AI can your machine run?",
       subtitle: "Find out which AI models your machine can actually run.",
+    },
+    catalog: {
+      title: "Local AI models you can run",
+      subtitle: "Search the full catalog — graded for your GPU, Mac or chosen device.",
+      metaTitle: "All local AI models — AiNaiDee",
+      metaDescription:
+        "The full open model catalog. Filter by task, lab and license, graded against your own machine.",
+    },
+    picks: {
+      code: "Can I run coding models?",
+      chat: "Can I run chat models?",
+      reasoning: "Can I run reasoning models?",
+      vision: "Can I run vision models?",
+      seeAll: "See all",
+      empty: "Nothing in this category runs comfortably on this machine yet.",
+      browseAll: "Browse the full catalog",
+      browseAllHint: "Want to filter it yourself",
     },
     modelList: {
       verdictEyebrow: "Based on detected hardware",
@@ -214,7 +249,6 @@ export const ui = {
       sortDownloads: "Sort: Popularity",
       yourMachine: "Your machine",
       detectingHardware: "Detecting hardware…",
-      rulerHelp1: "Each bar is the memory a model needs at Q4_K_M quantization, measured on the same ruler across the page.",
       rulerHelp2: "Bars stopping before the orange line run comfortably. Bars crossing it need to borrow system RAM, which is much slower.",
       tagTool: "Can call tools",
       tagThinking: "Reasoning",

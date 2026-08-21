@@ -15,9 +15,9 @@ alongside the existing inference-only check, localize the UI to Thai, and add a 
 direction has been applied to the real home page (`ModelListContent.astro` rewritten on its
 row+ruler layout, `src/styles/global.css` re-themed site-wide) and deployed — see "Rebranding still
 to do" for what's left. The site is now genuinely bilingual at the routing level (`/` Thai,
-`/en/` English — see "Bilingual routing" below) but only the home page actually has both: Thai
-localization elsewhere is still the **partial**, single-language state from before that routing
-existed — `NavHeader`, `Footer`, and `playground.astro`'s welcome copy are Thai-only (technical
+`/en/` English — see "Bilingual routing" below) but only the home page and `/models` actually have
+both: Thai localization elsewhere is still the **partial**, single-language state from before that
+routing existed — `NavHeader`, `Footer`, and `playground.astro`'s welcome copy are Thai-only (technical
 terms kept in English — GPU, VRAM, RAM, WebGPU, grade letters, quant codes, MoE);
 `why`/`compare`/`tier`/`docs`/`license`/`blog` pages, `model/[id]`/`device/[id]`, and the
 playground chat UI's own microcopy are English-only. Converting any of them to real bilingual pages
@@ -181,8 +181,8 @@ Hardware support lives in lookup tables, not in detection logic — extend `GPU_
 
 ### Model catalog — `packages/models/src/index.ts`
 
-84 models, each a one-line entry in the `STATIC_MODELS` array (the README's "68+" is stale). The
-whole module is 229 lines because sizes are **derived, not hand-written**:
+109 models, each a one-line entry in the `STATIC_MODELS` array (the README's "68+" is stale). The
+module is longer than a headcount implies because sizes are **derived, not hand-written**:
 
 - `makeQuants(paramsB)` generates all 7 quantization levels (Q2_K → F16) from the parameter count,
   applying a 1.1 factor plus `RUNTIME_OVERHEAD_GB = 0.5` for KV cache and runtime.
@@ -272,8 +272,8 @@ never arrive; re-enable it if SMTP is ever set up. Details in `docs/blog-plan.md
 prefixDefaultLocale: false } }`, so Thai lives unprefixed at the site root and English is the one
 that gets a path prefix — the reverse of Astro's usual example. Astro's i18n config does not
 duplicate page content automatically: each bilingual page needs a real file per locale. The
-established pattern (currently only implemented for the home page — see `docs/STATUS.md` for what
-still needs converting) is:
+established pattern (currently implemented for the home page and `/models` — see `docs/STATUS.md`
+for what still needs converting) is:
 
 - **`src/i18n/ui.ts`** — the dictionary, `ui.th.<namespace>.<key>` / `ui.en.<namespace>.<key>`
   (one namespace per component: `nav`, `footer`, `home`, `modelList`, …), plus
@@ -297,6 +297,7 @@ still needs converting) is:
 - Each bilingual route is a real file per locale: `src/pages/index.astro` (Thai, passes
   `lang="th"` explicitly) and `src/pages/en/index.astro` (a thin wrapper passing `lang="en"` and
   English hero copy into the same shared components) — not one file branching on locale.
+  `src/pages/models.astro` / `src/pages/en/models.astro` follow the same shape.
 - `Layout.astro` derives its `lang`/`locale` defaults from `Astro.currentLocale` (falls back to
   `"th"` for locale-agnostic routes like `/api/*`) and only emits `hreflang` `<link>` alternates
   (`th`/`en`/`x-default`, `x-default` pointing at the Thai root) when a page passes
@@ -314,6 +315,28 @@ still needs converting) is:
   resolved strings from the server via a `data-i18n={JSON.stringify(...)}` attribute, then
   re-`JSON.parse` it into a `let` (not `const`) inside the `astro:page-load` handler that already
   re-runs on every SPA navigation — never at module top-level.
+
+### `ModelListContent` renders two different pages — `/` and `/models`
+
+One component, switched by a `variant?: "full" | "picks"` prop:
+
+- **`full`** — the whole 109-model catalog with the filter bar. `/models`, `/en/models` and
+  `/device/[id]` use it. This is what `/` used to be.
+- **`picks`** — the home page. Hides the filter bar and both source grids, and fills four intent
+  groups ("Can I run vision / coding / reasoning / chat models?") with three rows each.
+
+**Both modes still render all 109 rows.** Grading is client-side against detected hardware, so the
+picker has to have the full set in the DOM to choose from; `picks` just hides the grids it draws
+out of. Two consequences worth knowing before editing the script:
+
+- `renderPicks()` **moves** `<a>` rows out of `#models-grid` / `#models-grid-rest` into the group
+  lists, so `restoreRowsHome()` puts them back at the top of every `sortAndAnimateRows()` pass.
+  Sorting, `applyFilters()` and the grade counts all read from those two grids and would otherwise
+  see a partial set.
+- Picks are ranked by **capability, not score**. `computeScore()` measures how *comfortably* a
+  model runs, so sorting by it recommends TinyLlama 1.1B over Llama 3.1 8B. The fit test already
+  discards what cannot run, so the ranking is: `can-run` before `tight`, then most parameters, then
+  score as a tie-break. Do not "fix" this back to a score sort.
 
 ### Other pieces
 
