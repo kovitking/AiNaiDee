@@ -4,7 +4,75 @@
 
 ---
 
-## ⚠️ Resume here — home page split into best-picks + /models, rows halved in height
+## ⚠️ Resume here — ported four upstream features on top of the home-page split
+
+Second half of 2026-08-21, after `9166f1e` was deployed. Surveyed upstream's six new 2026-08-20
+commits and ported the four worth having. Catalog is now **122 models** (was 109).
+
+1. **Lineage tracking** (`4396dcb`). `lineage?: string` on `AIModel` plus `getLineageCurrent`,
+   `isCurrentInLineage` and `getLineageSuccessor`, copied verbatim — only the newest release in a
+   product slot is recommendable. **This fixes a real bug in the picks page shipped hours earlier**:
+   ranking by parameter count alone happily recommended Gemma 2 27B with Gemma 3 27B sitting right
+   there. Rows now carry `data-current`, computed server-side, and `renderPicks()` skips anything
+   marked superseded.
+
+   11 slots / 26 models assigned. Six match upstream's; the rest are this fork's own
+   (`deepseek-frontier`, `gemma-27b`, `typhoon-small`, `typhoon-mid`, `qwen-4b`, `qwen-8b`).
+   **Deliberately diverged from upstream on one point**: they put `qwen3-coder-30b` in the
+   `qwen-dense-27b` slot, so a general model supersedes a coding model. This fork does not — a coder
+   or reasoning variant is a different product slot, not an older generation, and the same goes for
+   base/instruct pairs. `tests/lineage.test.ts` is upstream's helper tests verbatim plus a rewritten
+   catalog block (theirs asserts GLM-5.3 and the coder behaviour, neither of which applies here),
+   including a sweep that every slot resolves to exactly one current model.
+
+2. **Image and video models** (`4396dcb`), 13 entries: Wan 2.1/2.2, HunyuanVideo 1.5, LTX 2.3,
+   MiniMax H3, FLUX.2 Klein 4B/9B + Dev, Z-Image Turbo, Qwen Image 2512, HunyuanImage 3 (+instruct).
+   They introduce `useCase: ["image"]` / `["video"]`, so the task filter gained both options and the
+   home page gained two pick groups, ordered first because generation is the most specific tag.
+   Required adding `ggufRepo?: string` to `AIModel` — upstream's entries carry it and tsc rejected
+   them otherwise. **Caveat worth knowing**: these are diffusion models being graded by an
+   LLM-oriented scorer, so their tok/s figures are not meaningful. Upstream has the same problem.
+
+3. **Company logos**, closing the last item from the original clutter diagnosis. 20 SVGs from
+   upstream + `src/components/ProviderLogo.astro`. Upstream drives theirs off a 314-line
+   `data/companies.ts` of full company profiles; this fork only needs the eye anchor, so the
+   component maps our `provider` strings straight to a mark and falls back to the provider's
+   initial otherwise. **106 models get a real logo, 16 fall back** — and the fallbacks are almost
+   exactly the Thai/SEA labs this fork added (SCB 10X 9, OpenThaiGPT 4, VISTEC-depa 1), which
+   upstream has no mark for. Drawing our own would be a nice touch later.
+
+   **Non-obvious CSS trap, cost a debug cycle**: `.nd-provider-logo` rules written in
+   `ModelListContent.astro` never applied. Astro scopes styles to the component that renders the
+   element, and the SVG is emitted by `ProviderLogo`, so the caller's scoped rule cannot reach it.
+   Tailwind preflight's `svg { display: block }` therefore stood, putting every mark on its own
+   line and pushing rows from 59.89px to ~74px. Fixed by moving the rules into `ProviderLogo.astro`
+   itself; row height is back to exactly 59.89px, so the logo costs nothing.
+
+4. **GPU_DB** (`4396dcb`): B200, H200, A100 40GB, L20, A10, A10G, Tesla V100 32GB, Raspberry Pi 5
+   16GB. **`pnpm test` caught what a copy-paste would have missed** — `getGPUCategory()` returned
+   "Other" for all of them and two integrity tests failed. The datacenter regex listed exact SKUs,
+   so capacity variants never matched; it now takes an optional trailing size
+   (`( \d+gb)?`) and covers the new parts.
+
+**Not ported, deliberately**: Astro 7 (`65c7126`) — upstream runs `@astrojs/vercel`, so their bump
+proves nothing about our `@astrojs/node`, which is pinned to 10.1.0 precisely because newer adapters
+import Astro internals absent from 6.3.3. It is the riskiest item on the list and wants its own
+session. Also skipped: `f7b1ba9` (runai only), `6c44096` (whitespace), and upstream's SEO landing
+pages / `/company/[slug]` / `/devices` / `/vram/[size]`, which are a separate piece of work.
+`318c473` (sessionStorage filter persistence) is **still** unported, now from two sessions back.
+
+**Verified**: `pnpm check` 0 errors, `pnpm test` **220/220** across 9 files, `pnpm build` clean.
+In the browser: 6 pick groups × 3 rows, no duplicates, **no superseded model leaking into picks**,
+`/api/models` returning 122, logo/fallback split as above, row height unchanged at 59.89px.
+
+**A dev-server gotcha that looked like a bug and was not**: right after `pnpm dev` starts, Vite
+re-optimizes dependencies and the first page load can leave hardware detection never completing —
+picks render empty, the verdict stays "—", and the console shows `Failed to fetch dynamically
+imported module`. One reload fixes it. Do not go debugging `renderPicks()` over this.
+
+---
+
+## Earlier on 2026-08-21 — home page split into best-picks + /models, rows halved in height
 
 This session (2026-08-21) rebuilt the model list's information density after kovit compared the
 site against upstream's redesigned `canirun.ai` and judged ours cluttered. Comparing both live at

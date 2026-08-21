@@ -4,6 +4,7 @@ import {
   models,
   getActiveParamsBillions,
   isCommercialLicense,
+  isCurrentInLineage,
   LICENSE_LIST,
 } from "@/data/models"
 import { getLicenseSlug } from "@/data/licenses"
@@ -18,6 +19,7 @@ import IconTool from "@/icons/tool.svg"
 import IconThinking from "@/icons/thinking.svg"
 import IconVision from "@/icons/vision.svg"
 import IconStar from "@/icons/star.svg"
+import ProviderLogo from "@/components/ProviderLogo.astro"
 import { getModelTitleTransitionName } from "@/lib/view-transitions"
 import { useTranslations, type Lang } from "@/i18n/ui"
 import { useCaseLabel } from "@/i18n/useCases"
@@ -49,6 +51,8 @@ const catalogUrl = getRelativeLocaleUrl(lang, "models")
 // so vision and coding models are not swallowed by the broad "chat" tag they
 // almost all also carry.
 const PICK_GROUPS = [
+  { tag: "image", label: t("picks.image") },
+  { tag: "video", label: t("picks.video") },
   { tag: "vision", label: t("picks.vision") },
   { tag: "code", label: t("picks.code") },
   { tag: "reasoning", label: t("picks.reasoning") },
@@ -390,6 +394,8 @@ function ctxLabel(n: number): string {
       <option value="code">{useCaseLabel(["code"], lang)}</option>
       <option value="reasoning">{useCaseLabel(["reasoning"], lang)}</option>
       <option value="vision">{useCaseLabel(["vision"], lang)}</option>
+      <option value="image">{useCaseLabel(["image"], lang)}</option>
+      <option value="video">{useCaseLabel(["video"], lang)}</option>
     </select>
 
     <!-- Provider filter -->
@@ -468,6 +474,7 @@ function ctxLabel(n: number): string {
               data-provider={model.provider}
               data-context={model.contextLength}
               data-release={model.releaseDate || ""}
+              data-current={isCurrentInLineage(model, models) ? "true" : "false"}
               data-featured="true"
               data-license={model.license || ""}
               data-commercial={
@@ -485,6 +492,7 @@ function ctxLabel(n: number): string {
                   class="nd-row-title"
                   style={`view-transition-name: ${getModelTitleTransitionName(model.id)};`}
                 >
+                  <ProviderLogo provider={model.provider} />
                   {model.name}
                   <span data-badges class="inline-flex items-center gap-1">
                     {model.architecture === "moe" && (
@@ -587,6 +595,7 @@ function ctxLabel(n: number): string {
               data-provider={model.provider}
               data-context={model.contextLength}
               data-release={model.releaseDate || ""}
+              data-current={isCurrentInLineage(model, models) ? "true" : "false"}
               data-license={model.license || ""}
               data-commercial={
                 isCommercialLicense(model.license) ? "true" : "false"
@@ -603,6 +612,7 @@ function ctxLabel(n: number): string {
                   class="nd-row-title"
                   style={`view-transition-name: ${getModelTitleTransitionName(model.id)};`}
                 >
+                  <ProviderLogo provider={model.provider} />
                   {model.name}
                   <span data-badges class="inline-flex items-center gap-1">
                     {model.architecture === "moe" && (
@@ -1316,6 +1326,10 @@ function ctxLabel(n: number): string {
           if (!row) return false
           if (used.has(row.dataset.modelId || "")) return false
           if (!(row.dataset.uses || "").split(",").includes(tag)) return false
+          // Never recommend a model the catalog itself supersedes: Gemma 2 27B
+          // is not the answer when Gemma 3 27B is right there. Computed
+          // server-side into data-current via isCurrentInLineage().
+          if (row.dataset.current === "false") return false
           const status = row.dataset.status
           return status === "can-run" || status === "tight"
         })

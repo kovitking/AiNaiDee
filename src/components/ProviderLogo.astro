@@ -1,0 +1,101 @@
+---
+// A small brand mark per model row. Upstream drives this off a 314-line
+// `data/companies.ts` with full company profiles; this fork only needs the eye
+// anchor in the list, so it maps our own `provider` strings straight to a logo
+// and falls back to the provider's initial for the makers upstream has no mark
+// for (SCB 10X, OpenThaiGPT, VISTEC-depa — the Thai/SEA labs this fork added).
+import LogoAi2 from "@/icons/companies/ai2.svg";
+import LogoBfl from "@/icons/companies/bfl.svg";
+import LogoCohere from "@/icons/companies/cohere.svg";
+import LogoDeepSeek from "@/icons/companies/deepseek.svg";
+import LogoGoogle from "@/icons/companies/google.svg";
+import LogoHuggingFace from "@/icons/companies/huggingface.svg";
+import LogoKimi from "@/icons/companies/kimi.svg";
+import LogoLiquid from "@/icons/companies/liquid.svg";
+import LogoLtx from "@/icons/companies/ltx.svg";
+import LogoMeta from "@/icons/companies/meta.svg";
+import LogoMicrosoft from "@/icons/companies/microsoft.svg";
+import LogoMiniMax from "@/icons/companies/minimax.svg";
+import LogoMistral from "@/icons/companies/mistral.svg";
+import LogoNvidia from "@/icons/companies/nvidia.svg";
+import LogoOpenAI from "@/icons/companies/openai.svg";
+import LogoOrnith from "@/icons/companies/ornith.svg";
+import LogoQwen from "@/icons/companies/qwen.svg";
+import LogoTencent from "@/icons/companies/tencent.svg";
+import LogoZai from "@/icons/companies/zai.svg";
+
+interface Props {
+  provider: string;
+  class?: string;
+}
+
+const { provider, class: className = "h-3.5 w-3.5" } = Astro.props;
+
+const LOGOS: Record<string, typeof LogoQwen> = {
+  "Alibaba": LogoQwen,
+  // DAMO is Alibaba's research arm and SeaLLM is built on Qwen, so it carries
+  // the same mark rather than falling back to a letter.
+  "Alibaba DAMO": LogoQwen,
+  "Allen AI": LogoAi2,
+  "Black Forest Labs": LogoBfl,
+  "Cohere": LogoCohere,
+  "DeepReinforce": LogoOrnith,
+  "DeepSeek": LogoDeepSeek,
+  "Google": LogoGoogle,
+  "HuggingFace": LogoHuggingFace,
+  "Lightricks": LogoLtx,
+  "Liquid AI": LogoLiquid,
+  "Meta": LogoMeta,
+  "Microsoft": LogoMicrosoft,
+  "MiniMax": LogoMiniMax,
+  "Mistral AI": LogoMistral,
+  "Moonshot AI": LogoKimi,
+  "NVIDIA": LogoNvidia,
+  "OpenAI": LogoOpenAI,
+  "Tencent": LogoTencent,
+  "Zhipu AI": LogoZai,
+};
+
+const Logo = LOGOS[provider];
+const initial = provider.trim().charAt(0).toUpperCase() || "?";
+---
+
+{
+  Logo ? (
+    <Logo class={`nd-provider-logo ${className}`} aria-hidden="true" />
+  ) : (
+    <span class={`nd-provider-fallback ${className}`} aria-hidden="true">
+      {initial}
+    </span>
+  )
+}
+
+<style>
+  /* These have to live here, not in ModelListContent: Astro scopes styles to
+     the component that renders the element, so a `.nd-provider-logo` rule in
+     the caller never reaches an SVG emitted by this component.
+     Tailwind preflight sets `svg { display: block }`, which puts the mark on
+     its own line inside .nd-row-title — that title keeps overflow/ellipsis and
+     so cannot become a flex container, meaning the mark has to align inline. */
+  .nd-provider-logo,
+  .nd-provider-fallback {
+    display: inline-block;
+    flex: none;
+    vertical-align: -0.18em;
+    margin-right: 3px;
+    /* An eye anchor, not decoration: quiet beside the model name, never
+       invisible against the background. */
+    opacity: 0.85;
+  }
+
+  .nd-provider-fallback {
+    display: inline-grid;
+    place-items: center;
+    border-radius: 3px;
+    border: 1px solid var(--color-edge);
+    font-family: var(--font-mono);
+    font-size: 8.5px;
+    line-height: 1;
+    color: var(--color-secondary);
+  }
+</style>
