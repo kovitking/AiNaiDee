@@ -1,10 +1,99 @@
 # AiNaiDee — project status
 
-**Last updated: 2026-08-21.** Start here when picking the project back up.
+**Last updated: 2026-08-22.** Start here when picking the project back up.
 
 ---
 
-## ⚠️ Resume here — ported four upstream features on top of the home-page split
+## ⚠️ Resume here — nothing pending, everything pushed and live
+
+**State as of 2026-08-22.** `main` is at **`9d5120e`**, pushed to `origin`, and production is live
+on `f1297d4` (the skill commit after it is tooling only, so it needs no deploy). Working tree is
+clean apart from the usual untracked files and one problem noted below. Three commits landed across
+2026-08-21:
+
+| commit | what | deployed |
+|---|---|---|
+| `9166f1e` | split `/` into best-picks, moved the full catalog to `/models`, row height 99.09 → 59.89px | yes |
+| `f1297d4` | ported lineage tracking, 13 image/video models, 20 company logos, 8 GPUs from upstream | yes |
+| `9d5120e` | `ainaidee-icons` skill + `.gitignore` fix so repo-owned skills are tracked | n/a (tooling) |
+
+Catalog is **122 models** (was 109). Tests **220** across 9 files. `pnpm check` 0 errors.
+A readable write-up of the whole session, with the measurements and the reasoning behind each
+decision, is published at
+<https://claude.ai/code/artifact/3a805da2-50bb-4e06-b112-5de410251faf> (private).
+
+### The one thing genuinely broken
+
+**`Dockerfile` is a OneDrive cloud-only placeholder** — `stat` reports `blocks=0
+flags=compressed,dataless`, so its content is not on this disk and OneDrive would not hydrate it
+even after being restarted. It carries an **uncommitted modification that is therefore
+unrecoverable**, and it was deliberately left out of every commit rather than committed broken.
+`git status` still prints `error: read error while indexing Dockerfile` and continues.
+
+This does **not** affect deploys: `deploy-server.sh` builds from a fresh GitHub clone, so it uses
+the committed Dockerfile. Check whether OneDrive ever pulls the file down; if it does, look at the
+diff before deciding whether to keep it.
+
+### Next session, in priority order
+
+1. **Move the working copy out of OneDrive.** This is no longer a nice-to-have. OneDrive corrupted
+   files twice in one session — first `node_modules`, then `Dockerfile` — and the second time it
+   degraded `git` itself into **answering wrong silently**: `git diff` reported a modified file as
+   unchanged. That is worse than git failing outright, and it is why work stopped mid-session.
+   `git clone` to a path outside any synced folder and use push/pull with the Windows box.
+2. **Draw marks for the three Thai/SEA labs** (SCB 10X, OpenThaiGPT, VISTEC-depa). 16 of 122 models
+   fall back to a letter and they are almost exactly this fork's own additions.
+3. **Check the site on a real phone.** The device toolbar in DevTools does not change `pointer`, so
+   the only thing verified is that the media query is written correctly — nobody has seen the fact
+   line wrap or the quant strip on real hardware.
+4. Decide on `/api/models` caching. The origin sets `Cache-Control: public, max-age=3600`, so API
+   consumers can read a stale catalog for up to an hour after a deploy. Confirmed live: the CDN
+   served 109 while the origin served 122. Left alone deliberately — it is a freshness/load
+   trade-off, not a bug.
+5. `318c473` sessionStorage filter persistence — still unported, now three sessions running.
+6. Astro 7 (`65c7126`). Riskiest item; upstream runs `@astrojs/vercel` so their bump proves nothing
+   about our pinned `@astrojs/node`. Give it its own session.
+7. Upstream's SEO landings — `/company/[slug]`, `/devices`, `/vram/[size]`, `/models/[category]`.
+8. Thai localization for the pages that still have none: `why`, `compare`, `tier`, `docs`,
+   `license/*`, `blog/*`, `model/[id]`, `device/[id]`, and the playground chat microcopy.
+
+---
+
+## Icon skill sourcing Google Material Symbols — 2026-08-21 (`9d5120e`)
+
+`.claude/skills/ainaidee-icons/` — a skill plus a tested script, written because Material Symbols
+(`google/material-design-icons`, **Apache 2.0**, no UI attribution needed) are a good source for
+this repo's UI icons but go wrong in ways that are invisible.
+
+`scripts/add-icon.sh <material-name> [local-name]` fetches one symbol and normalises it into
+`src/icons/`: adds `fill="currentColor"`, strips `width`/`height` so size comes from the class,
+refuses to overwrite, validates `STYLE`, and prints the import line. Tested across five cases
+(happy path, overwrite refusal, bad name, bad style, weight override) and then end to end — a real
+symbol was fetched, wired into `/models`, and measured in the browser (renders 32×32, inherits
+`currentColor` into the accent colour, visible on dark) before being reverted.
+
+**`WEIGHT` defaults to 300, not Material's 400.** The existing 34 UI icons are 2px strokes; Material
+Symbols are filled glyphs. Rendering both side by side at 24px showed 400 reads visibly heavier and
+200 too thin. Do not change this default casually — it was measured, not chosen by taste.
+
+**`.gitignore` had to change.** `.claude/skills/` was ignored as a whole directory (it holds
+symlinks into the vendored `.agents/skills/` bundle), so a repo-owned skill would never have been
+committed and would vanish on a fresh clone. **Git cannot un-ignore a file inside an excluded
+directory**, so the rule is now `.claude/skills/*` plus `!.claude/skills/ainaidee-icons/`. Verified
+with `git check-ignore` and a dry-run add: exactly the two new files are tracked, the vendored
+symlinks stay ignored, and `settings.local.json` stays ignored.
+
+The skill documents four traps, every one of which actually happened in this repo — a Material
+Symbol carries no `fill` attribute at all (so it defaults to black, disappears on the dark theme,
+and grepping for `#000` does not find it); their `viewBox` is `0 -960 960 960` with a negative Y
+origin that is correct and must not be "fixed"; Tailwind preflight's `svg { display: block }` puts
+an inline icon on its own line and silently grows the row; and Astro scopes styles to the component
+that renders the element, so a rule in the caller never reaches a child component's SVG — which is
+what made the preflight bug invisible for a debug cycle during `f1297d4`.
+
+---
+
+## Ported four upstream features on top of the home-page split — 2026-08-21
 
 Second half of 2026-08-21, after `9166f1e` was deployed. Surveyed upstream's six new 2026-08-20
 commits and ported the four worth having. Catalog is now **122 models** (was 109).
