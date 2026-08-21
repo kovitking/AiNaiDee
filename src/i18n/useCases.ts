@@ -9,6 +9,8 @@ export const USE_CASE_LABELS = {
     multilingual: "หลายภาษา",
     edge: "เครื่องเล็ก",
     rag: "ค้นเอกสาร",
+    image: "สร้างรูป",
+    video: "สร้างวิดีโอ",
   },
   en: {
     chat: "Chat",
@@ -18,6 +20,8 @@ export const USE_CASE_LABELS = {
     multilingual: "Multilingual",
     edge: "Edge",
     rag: "RAG",
+    image: "Image",
+    video: "Video",
   },
 } as const;
 

@@ -49,6 +49,8 @@ export const ui = {
     },
     picks: {
       code: "รันโมเดลเขียนโค้ดได้ไหม?",
+      image: "รันโมเดลสร้างรูปได้ไหม?",
+      video: "รันโมเดลสร้างวิดีโอได้ไหม?",
       chat: "รันโมเดลคุยทั่วไปได้ไหม?",
       reasoning: "รันโมเดลคิดวิเคราะห์ได้ไหม?",
       vision: "รันโมเดลดูรูปได้ไหม?",
@@ -181,6 +183,8 @@ export const ui = {
     },
     picks: {
       code: "Can I run coding models?",
+      image: "Can I run image models?",
+      video: "Can I run video models?",
       chat: "Can I run chat models?",
       reasoning: "Can I run reasoning models?",
       vision: "Can I run vision models?",

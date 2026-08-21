@@ -181,7 +181,7 @@ Hardware support lives in lookup tables, not in detection logic — extend `GPU_
 
 ### Model catalog — `packages/models/src/index.ts`
 
-109 models, each a one-line entry in the `STATIC_MODELS` array (the README's "68+" is stale). The
+122 models, each a one-line entry in the `STATIC_MODELS` array (the README's "68+" is stale). The
 module is longer than a headcount implies because sizes are **derived, not hand-written**:
 
 - `makeQuants(paramsB)` generates all 7 quantization levels (Q2_K → F16) from the parameter count,
@@ -194,6 +194,18 @@ module is longer than a headcount implies because sizes are **derived, not hand-
 
 So adding a model means adding one entry with `paramsBillions` and (for MoE) a `moe` block; the
 quantization table follows automatically.
+
+**Lineage** — `lineage?: string` marks models that occupy the same product slot, and
+`getLineageCurrent` / `isCurrentInLineage` / `getLineageSuccessor` resolve which one is still the
+right answer. Only the newest `releaseDate` in a slot is recommendable, so the home page's picks
+never suggest Gemma 2 27B while Gemma 3 27B exists. A **coder or reasoning variant is a different
+slot, not an older generation** — same for base/instruct pairs — so those stay unassigned. (Upstream
+disagrees and puts `qwen3-coder-30b` in its dense-27B lineage; the divergence is intentional and
+`tests/lineage.test.ts` pins it.)
+
+The catalog also carries **image and video generation models** (`useCase: ["image"]` / `["video"]`).
+They are graded by a scorer built for LLMs, so their tok/s numbers are not meaningful — the VRAM fit
+is. Upstream has the same limitation.
 
 ### Public API — `src/pages/api/`
 
@@ -345,6 +357,12 @@ out of. Two consequences worth knowing before editing the script:
   (`src/lib/playground-worker.ts`, `playground.ts`).
 - **OG images** are generated at build time with satori + resvg (`src/lib/og.ts`,
   `src/pages/og/[id].jpg.ts`) — one per model, which is most of the 27s build.
+- **Provider logos** (`src/components/ProviderLogo.astro`) map a model's `provider` string to an SVG
+  in `src/icons/companies/`, falling back to the provider's initial. The Thai/SEA labs this fork
+  added (SCB 10X, OpenThaiGPT, VISTEC-depa) have no mark and take the fallback. **Its CSS must live
+  in that component**: Astro scopes styles to the component that renders the element, so a rule
+  written in `ModelListContent.astro` never reaches the SVG, leaving Tailwind preflight's
+  `svg { display: block }` in force — which silently puts every logo on its own line.
 - **`packages/runai/`** is a separate CLI (local model runner with an OpenAI-compatible API), managed
   with pnpm but still calling Bun runtime APIs (`Bun.spawn`, `bun:sqlite`) in its implementation —
   keep them unless the task is explicitly to migrate off Bun. It is not part of the web build and has
