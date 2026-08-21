@@ -376,7 +376,12 @@ out of. Two consequences worth knowing before editing the script:
   `packages/runai/CLAUDE.md` explicitly requires pnpm there.
 - `.agents/skills/` holds a vendored skill bundle (Astro, Tailwind, a11y, SEO, `deploy-to-vercel`).
   It is reference material, not repo policy — `deploy-to-vercel` in particular contradicts the
-  direction this fork is taking.
+  direction this fork is taking. `.claude/skills/*` symlinks into it and stays gitignored.
+- **`.claude/skills/ainaidee-icons/` is this repo's own skill and *is* tracked** — read it before
+  adding or restyling any icon. It carries the Material Symbols pipeline (`scripts/add-icon.sh`),
+  the measured weight-300 default, and the SVG traps specific to this Astro + Tailwind setup. The
+  `.gitignore` uses `.claude/skills/*` plus a negation for it, because git cannot un-ignore a file
+  inside an excluded *directory*; keep that shape if you add another repo-owned skill.
 
 ## Environment
 
