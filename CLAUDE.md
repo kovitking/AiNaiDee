@@ -2,6 +2,27 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## `docs/` is local-only and is not in this repo
+
+Everything this file cites as `docs/…` — `STATUS.md`, `deploy.md`, `blog-plan.md`, the rest — is
+**real, but it is not tracked by git and never reaches GitHub.** The whole `docs/` tree was removed
+from every commit with `git filter-repo` on 2026-08-23 and force-pushed; `.gitignore` now carries a
+blanket `docs/` rule. It is this project's own working knowledge and this repo is public.
+
+Consequences worth knowing before you go looking:
+
+- **A fresh clone has no `docs/` at all.** On this Mac the files are on disk; on the Windows box
+  and on the deploy server they are not, and they have to be copied across by hand rather than
+  pulled. If a `docs/…` path this file mentions does not exist where you are, that is expected —
+  it is not a sign that something is broken or that the work described never happened.
+- **Do not `git add -f` anything under `docs/`**, and do not "restore" it by committing it back.
+- **`git filter-repo` rewrites the working tree too.** It checks out the new HEAD, so tracked files
+  it drops are deleted from disk as well — that is exactly what happened to all 12 tracked docs on
+  2026-08-23, and they came back only because a `git bundle` backup had been taken first. Back up
+  outside the OneDrive tree before any future rewrite.
+- The rewrite changed **every commit SHA** and dropped six commits that had only ever touched
+  `docs/` (148 → 142). Any other checkout of this repo must be re-cloned, not pulled.
+
 ## What this is
 
 AiNaiDee.com ("เอไอ ไหน ดี?") — a fork of [midudev/canirun.ai](https://github.com/midudev/canirun.ai)
@@ -499,9 +520,9 @@ plus a five-phase action plan, a keyword table and a timeline. **Read it before 
 SEO-related change** — most of the obvious "fixes" are already in place and would be re-done for
 nothing.
 
-**Both files are gitignored on purpose** (`docs/seo-audit-*.md` / `.html` — same treatment as
-`docs/deploy-architecture.html`). They are working documents, not part of the site: do not
-`git add -f` them, do not commit them, do not ship them in a deploy. They also sit in the
+**Both files are gitignored**, like everything else under `docs/` now — see the note at the top of
+this file. They are working documents, not part of the site: do not `git add -f` them, do not commit
+them, do not ship them in a deploy. They also sit in the
 OneDrive-synced tree as on-demand placeholders, so reading either one can time out until it is
 hydrated — which is why the summary below has to stand on its own.
 

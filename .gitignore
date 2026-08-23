@@ -49,14 +49,16 @@ scripts/deploy.local.env
 # ...except skills written for this repo, which are real files and belong in it.
 !.claude/skills/ainaidee-icons/
 
-# rendered copy of docs/deploy-architecture.md — keep only the markdown source
-docs/deploy-architecture.html
+# The whole docs/ tree is local-only. It is this project's own working notes —
+# session logs, deploy architecture, plans — and it is deliberately not published
+# on a public repo. Removed from every commit with `git filter-repo` on
+# 2026-08-23 and force-pushed; the files still live on disk here, and on the
+# other dev machine they have to be copied across by hand rather than pulled.
+# Do not `git add -f` anything under it.
+docs/
 
 # lockfile for the vendored skill bundle above
 skills-lock.json
 
-# SEO audit reports — internal working documents, not part of the site. Both
-# the markdown and its rendered HTML copy stay out of the repo by request; see
-# the "SEO" section in CLAUDE.md for what they contain. Do not `git add -f`.
-docs/seo-audit-*.md
-docs/seo-audit-*.html
+# (The SEO audit reports and the rendered deploy-architecture.html used to be
+# named here individually. They are covered by the blanket docs/ rule above.)
