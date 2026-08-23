@@ -511,14 +511,15 @@ The short version, so a session without the file still knows the shape of the pr
   not a file in `public/` — so adding a `public/robots.txt` would shadow it rather than edit it.
   (A local build emits one URL fewer than the deployed one: the server has `GHOST_URL` set, so its
   build includes the blog post pages.)
-- **Search Console: a property for `ainaidee.com` already exists** (kovit, 2026-08-23) — the audit's
-  "nothing has ever been submitted" is wrong on that point. There is still no
-  `google-site-verification` anywhere in `src/` or `public/`, so it is verified by DNS TXT or
-  through the GA4 tag, not by a meta tag in the build. Two things are still unconfirmed: whether it
-  is a **Domain** property (covers `www` and `blog` automatically) or a **URL-prefix** one (apex
-  only — `www` and `blog` would each need their own), and whether `sitemap-index.xml` was ever
-  submitted. GA4 (`G-F8RD8Z8QXT` in `Layout.astro`) is analytics and does not affect indexing
-  either way.
+- **Search Console is a Domain property for `ainaidee.com`** (kovit confirmed 2026-08-23) — the
+  audit's "nothing has ever been submitted" is wrong. A Domain property covers every subdomain and
+  both schemes, so `www.ainaidee.com` and `blog.ainaidee.com` are already inside it and **no second
+  property is needed**; do not add URL-prefix properties per hostname. It is verified by a
+  `google-site-verification` TXT record on the apex zone (DNS is hosted at NS1 — `nsone.net` — not
+  at the registrar), which is why nothing appears in `src/` or `public/`: there is no meta tag and
+  the build does not carry the token. GA4 (`G-F8RD8Z8QXT` in `Layout.astro`) is analytics and does
+  not affect indexing either way. What is still open is the sitemap submission —
+  `https://www.ainaidee.com/sitemap-index.xml`, with the `www`.
 - ~~**Imperva may be blocking Googlebot.**~~ **Ruled out 2026-08-23** — kovit confirmed the CWAF
   does not block Googlebot, so the audit's "check this before anything else" gate is cleared and
   crawlability is not the reason the site is missing from Google. Do not re-open this line of
