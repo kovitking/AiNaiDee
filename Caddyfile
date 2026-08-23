@@ -52,18 +52,17 @@
 		}
 	}
 
-	# www -> apex. Imperva forwards both hostnames to this same origin, so
-	# without this both served 200 for every URL while every canonical pointed
-	# at the apex — two crawlable copies of the whole site. The target must be
-	# an absolute https:// URL: Imperva terminates TLS and forwards plain HTTP,
-	# so Caddy would otherwise build the redirect as http:// and bounce
-	# visitors out of TLS.
-	@www host www.ainaidee.com
-	handle @www {
-		redir https://ainaidee.com{uri} permanent
-	}
-
-	# ainaidee.com (apex) — unchanged behavior from phase 1.
+	# ainaidee.com, www.ainaidee.com — unchanged behavior from phase 1.
+	#
+	# DO NOT add a `www -> apex` redirect here. Measured against production on
+	# 2026-08-23: Imperva already redirects the naked domain to www with a bare
+	# 308 (https://ainaidee.com/ -> https://www.ainaidee.com/, no origin
+	# involved — the response carries no `via: Caddy`). A www -> apex redirect
+	# at this origin would bounce straight back off that edge rule and loop the
+	# whole site into ERR_TOO_MANY_REDIRECTS. www is the hostname visitors
+	# actually land on; the canonical-hostname mismatch this creates is a
+	# SITE_URL / Imperva question, not a Caddy one. See the SEO section of
+	# CLAUDE.md.
 	handle {
 		# Ported from the old vercel.json: OG images are served as .jpg, so
 		# keep the .png URLs alive for anything that already linked them.

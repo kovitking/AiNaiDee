@@ -508,12 +508,18 @@ The short version, so a session without the file still knows the shape of the pr
   complete and derived from `Astro.site`, every page prerendered as static HTML (`prerender = false`
   appears only under `src/pages/api/`). `robots.txt` is a generated route — `src/pages/robots.txt.ts`,
   not a file in `public/` — so adding a `public/robots.txt` would shadow it rather than edit it.
-- **Nothing has ever been submitted to Google.** No `google-site-verification` anywhere in `src/`
-  or `public/`; GA4 (`G-F8RD8Z8QXT` in `Layout.astro`) is analytics, not indexing. This is the
-  first thing to do and it is *not* a code change.
-- **Imperva may be blocking Googlebot.** The CWAF sits in front of every hostname (see the
-  `Caddyfile` header comment) and challenges unknown bots by default. Confirm with Search Console's
-  live URL test before touching anything else — if it blocks, nothing else in the plan matters.
+- **Search Console: a property for `ainaidee.com` already exists** (kovit, 2026-08-23) — the audit's
+  "nothing has ever been submitted" is wrong on that point. There is still no
+  `google-site-verification` anywhere in `src/` or `public/`, so it is verified by DNS TXT or
+  through the GA4 tag, not by a meta tag in the build. Two things are still unconfirmed: whether it
+  is a **Domain** property (covers `www` and `blog` automatically) or a **URL-prefix** one (apex
+  only — `www` and `blog` would each need their own), and whether `sitemap-index.xml` was ever
+  submitted. GA4 (`G-F8RD8Z8QXT` in `Layout.astro`) is analytics and does not affect indexing
+  either way.
+- ~~**Imperva may be blocking Googlebot.**~~ **Ruled out 2026-08-23** — kovit confirmed the CWAF
+  does not block Googlebot, so the audit's "check this before anything else" gate is cleared and
+  crawlability is not the reason the site is missing from Google. Do not re-open this line of
+  investigation without new evidence.
 - ~~**The Thai brand name does not exist anywhere on the site.**~~ **Fixed 2026-08-23.** The brand
   was only ever spelled `AiNaiDee` in Latin script, so a search for "AI ไหนดี" had nothing on the
   page to match. `ui.th.home.subtitle` now opens with "AI ไหนดี?" (unspaced — that is how the query
@@ -522,13 +528,28 @@ The short version, so a session without the file still knows the shape of the pr
   and description come from new `ui.th.home.metaTitle`/`metaDescription` keys — it was the only page
   in the site relying on `Layout.astro`'s default title, so those defaults now only serve as a
   fallback.
-- ~~**`www` and the apex both serve 200 with no redirect between them**~~ **Fixed 2026-08-23** — a
-  `@www host www.ainaidee.com` block with `redir https://ainaidee.com{uri} permanent` now sits above
-  the apex `handle` in the `Caddyfile`. The target must stay an absolute `https://` URL: Imperva
-  terminates TLS and forwards plain HTTP, so Caddy would otherwise redirect visitors to `http://`.
-  **Deploying a `Caddyfile` change needs an extra step** — `scripts/deploy-server.sh` restarts only
-  the `app` container, and caddy's bind mount still points at the moved-aside backup directory, so
-  run `docker compose up -d caddy` in the live directory afterwards or the new config never loads.
+- **The apex redirects to `www`, and every canonical points at the apex.** The audit says "`www`
+  and the apex both serve 200 with no redirect between them" — that is **wrong**, measured against
+  production 2026-08-23: `https://ainaidee.com/` returns a bare **308 to
+  `https://www.ainaidee.com/`** (Imperva's naked-domain rule — the response carries no `via: Caddy`
+  and no origin headers), and `www` is what serves 200. So all 431 pages declare
+  `<link rel="canonical" href="https://ainaidee.com/…">` — a URL that **never returns 200 for
+  anyone**, because it bounces to `www`. Google is told "the real copy lives at a URL that is a
+  redirect", which is a far stronger indexing suppressant than a missing redirect, and it is now the
+  best remaining explanation for the site not being indexed.
+  - **Do not "fix" this in the `Caddyfile`.** A `www -> apex` redirect at the origin bounces off
+    Imperva's edge rule and loops the whole site — that rule was written and reverted on 2026-08-23
+    once production was actually measured; the `Caddyfile` carries a comment saying so.
+  - The two real options: set **`SITE_URL=https://www.ainaidee.com`** in the server's `.env` and
+    rebuild (canonical/OG/sitemap/JSON-LD follow `Astro.site`, so they all move to `www` in one
+    change, no Imperva access needed), **or** flip Imperva to redirect `www -> apex` and leave
+    `SITE_URL` alone. Pick one — the mismatch is the bug, not the choice of hostname.
+- **`blog.ainaidee.com` serves no `robots.txt` and no sitemap** — both 404 (measured 2026-08-23).
+  The `Caddyfile`'s `@passthrough` list covers `/_astro/*`, `/og/*`, `/blog*` and the favicons; every
+  other path is rewritten to `/blog{uri}` on the app, so `/robots.txt` becomes `/blog/robots.txt`
+  and 404s. Blog pages canonicalize to `ainaidee.com/blog/…` regardless, so this is minor — but
+  adding `/robots.txt` to that passthrough list is a one-line fix if the blog is ever meant to be
+  crawled on its own hostname.
 - **426 of the 431 pages are English on a Thai-branded domain** — `/device/` (283), `/model/`
   (122), `/license/` (16) and `why`/`compare`/`tier`/`docs`/`blog` (5). Only `/`, `/models/` and
   `/playground/` are Thai; the two `/en/` routes are English on purpose. This is the
