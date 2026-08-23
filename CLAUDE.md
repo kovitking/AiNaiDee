@@ -358,8 +358,11 @@ out of. Two consequences worth knowing before editing the script:
 - **OG images** are generated at build time with satori + resvg (`src/lib/og.ts`,
   `src/pages/og/[id].jpg.ts`) — one per model, which is most of the 27s build.
 - **Provider logos** (`src/components/ProviderLogo.astro`) map a model's `provider` string to an SVG
-  in `src/icons/companies/`, falling back to the provider's initial. The Thai/SEA labs this fork
-  added (SCB 10X, OpenThaiGPT, VISTEC-depa) have no mark and take the fallback. **Its CSS must live
+  in `src/icons/companies/`, falling back to the provider's initial (only `LG AI` and `Community`
+  still do). Twenty of those SVGs came from upstream; the three for the Thai/SEA labs this fork added
+  were made here, because none of those labs publishes a square SVG glyph — **`docs/brand-marks.md`
+  records where each one came from and what was changed, and is the thing to read before touching
+  them.** Verify any change at **14px on the dark theme**; 240px proves nothing. **Its CSS must live
   in that component**: Astro scopes styles to the component that renders the element, so a rule
   written in `ModelListContent.astro` never reaches the SVG, leaving Tailwind preflight's
   `svg { display: block }` in force — which silently puts every logo on its own line.

@@ -2,9 +2,14 @@
 // A small brand mark per model row. Upstream drives this off a 314-line
 // `data/companies.ts` with full company profiles; this fork only needs the eye
 // anchor in the list, so it maps our own `provider` strings straight to a logo
-// and falls back to the provider's initial for the makers upstream has no mark
-// for (SCB 10X, OpenThaiGPT, VISTEC-depa — the Thai/SEA labs this fork added).
+// and falls back to the provider's initial for anything unmapped (LG AI,
+// Community).
+//
+// The three Thai/SEA labs this fork added have no mark upstream and none of
+// them publishes a square SVG glyph, so `scb10x`/`openthaigpt`/`airesearch`
+// were made here — see docs/brand-marks.md for where each came from.
 import LogoAi2 from "@/icons/companies/ai2.svg";
+import LogoAiResearch from "@/icons/companies/airesearch.svg";
 import LogoBfl from "@/icons/companies/bfl.svg";
 import LogoCohere from "@/icons/companies/cohere.svg";
 import LogoDeepSeek from "@/icons/companies/deepseek.svg";
@@ -18,9 +23,11 @@ import LogoMicrosoft from "@/icons/companies/microsoft.svg";
 import LogoMiniMax from "@/icons/companies/minimax.svg";
 import LogoMistral from "@/icons/companies/mistral.svg";
 import LogoNvidia from "@/icons/companies/nvidia.svg";
+import LogoOpenThaiGPT from "@/icons/companies/openthaigpt.svg";
 import LogoOpenAI from "@/icons/companies/openai.svg";
 import LogoOrnith from "@/icons/companies/ornith.svg";
 import LogoQwen from "@/icons/companies/qwen.svg";
+import LogoScb10x from "@/icons/companies/scb10x.svg";
 import LogoTencent from "@/icons/companies/tencent.svg";
 import LogoZai from "@/icons/companies/zai.svg";
 
@@ -52,7 +59,12 @@ const LOGOS: Record<string, typeof LogoQwen> = {
   "Moonshot AI": LogoKimi,
   "NVIDIA": LogoNvidia,
   "OpenAI": LogoOpenAI,
+  "OpenThaiGPT": LogoOpenThaiGPT,
+  "SCB 10X": LogoScb10x,
   "Tencent": LogoTencent,
+  // WangchanX ships from the airesearch org on HuggingFace — the VISTEC-depa
+  // AI Research Institute — so it carries that institute's mark.
+  "VISTEC-depa": LogoAiResearch,
   "Zhipu AI": LogoZai,
 };
 
