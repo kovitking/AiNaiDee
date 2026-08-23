@@ -390,9 +390,10 @@ via `@libsql/client` and **throws** unless `TURSO_DATABASE_URL` and `TURSO_AUTH_
 is in `scripts/sql/runai-metrics.sql`.
 
 `SITE_URL` is read by `Dockerfile`/`docker-compose.yml` as a build arg and consumed by
-`astro.config.mjs` (`site: process.env.SITE_URL || 'https://ainaidee.com'`). It is baked into the
-build (sitemap + every absolute OG image URL), so changing the domain means rebuilding, not
-restarting. `GHOST_URL` and `GHOST_CONTENT_API_KEY` are build args the same way (see "Blog" below).
+`astro.config.mjs` (`site: process.env.SITE_URL || 'https://www.ainaidee.com'`). It is baked into
+the build (sitemap + every absolute OG image URL), so changing the domain means rebuilding, not
+restarting. **It is `https://www.ainaidee.com`, with the `www`** — Imperva 308s the naked domain to
+`www`, so the apex is not a URL any page can canonicalize to. See the SEO section. `GHOST_URL` and `GHOST_CONTENT_API_KEY` are build args the same way (see "Blog" below).
 
 ## Deployment
 
@@ -508,6 +509,8 @@ The short version, so a session without the file still knows the shape of the pr
   complete and derived from `Astro.site`, every page prerendered as static HTML (`prerender = false`
   appears only under `src/pages/api/`). `robots.txt` is a generated route — `src/pages/robots.txt.ts`,
   not a file in `public/` — so adding a `public/robots.txt` would shadow it rather than edit it.
+  (A local build emits one URL fewer than the deployed one: the server has `GHOST_URL` set, so its
+  build includes the blog post pages.)
 - **Search Console: a property for `ainaidee.com` already exists** (kovit, 2026-08-23) — the audit's
   "nothing has ever been submitted" is wrong on that point. There is still no
   `google-site-verification` anywhere in `src/` or `public/`, so it is verified by DNS TXT or
@@ -540,10 +543,13 @@ The short version, so a session without the file still knows the shape of the pr
   - **Do not "fix" this in the `Caddyfile`.** A `www -> apex` redirect at the origin bounces off
     Imperva's edge rule and loops the whole site — that rule was written and reverted on 2026-08-23
     once production was actually measured; the `Caddyfile` carries a comment saying so.
-  - The two real options: set **`SITE_URL=https://www.ainaidee.com`** in the server's `.env` and
-    rebuild (canonical/OG/sitemap/JSON-LD follow `Astro.site`, so they all move to `www` in one
-    change, no Imperva access needed), **or** flip Imperva to redirect `www -> apex` and leave
-    `SITE_URL` alone. Pick one — the mismatch is the bug, not the choice of hostname.
+  - **Resolved 2026-08-23: `www` is the canonical hostname.** kovit's call, taking Imperva's
+    existing edge redirect as given rather than fighting it. `SITE_URL=https://www.ainaidee.com` is
+    set in the server's `.env` (previous value kept as `.env.bak.20260823_140659`) and baked in by
+    the redeploy that followed, so canonical/OG/sitemap/JSON-LD all point at `www` — they derive
+    from `Astro.site`, so that one variable moves all of them. `astro.config.mjs`'s fallback moved
+    to `www` too, so a local `pnpm build` matches production. **Do not flip this back to the apex
+    without also changing the Imperva rule** — that is what created the mismatch in the first place.
 - **`blog.ainaidee.com` serves no `robots.txt` and no sitemap** — both 404 (measured 2026-08-23).
   The `Caddyfile`'s `@passthrough` list covers `/_astro/*`, `/og/*`, `/blog*` and the favicons; every
   other path is rewritten to `/blog{uri}` on the app, so `/robots.txt` becomes `/blog/robots.txt`

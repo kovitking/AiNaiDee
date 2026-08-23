@@ -6,7 +6,9 @@ import node from '@astrojs/node';
 
 // Baked into the build, not read at runtime: it goes into the sitemap and every
 // absolute OG image URL. Changing the public origin means rebuilding.
-const site = process.env.SITE_URL || 'https://ainaidee.com';
+// With the www: Imperva 308s the naked domain to www.ainaidee.com, so a page
+// that canonicalizes to the apex points at a URL that never returns 200.
+const site = process.env.SITE_URL || 'https://www.ainaidee.com';
 
 // https://astro.build/config
 export default defineConfig({
