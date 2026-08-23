@@ -7,19 +7,40 @@ import { useTranslations } from "@/i18n/ui";
 const t = useTranslations("th");
 ---
 
-<Layout lang="th" locale="th_TH" hasTranslation={true}>
+<Layout
+  lang="th"
+  locale="th_TH"
+  hasTranslation={true}
+  title={t("home.metaTitle")}
+  description={t("home.metaDescription")}
+>
   <Fragment slot="head">
     <script type="application/ld+json" set:html={JSON.stringify({
       "@context": "https://schema.org",
-      "@type": "WebApplication",
-      "name": "AiNaiDee",
-      "url": new URL("/", Astro.site).href,
-      "description": "ตรวจฮาร์ดแวร์ของคุณและดูว่ารันโมเดล AI ตัวไหนได้บ้าง วิเคราะห์ GPU, CPU และ RAM ในเบราว์เซอร์",
-      "applicationCategory": "DeveloperApplication",
-      "operatingSystem": "Web Browser",
-      "inLanguage": "th",
-      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
-      "creator": { "@type": "Organization", "name": "AiNaiDee", "url": new URL("/", Astro.site).href }
+      "@graph": [
+        {
+          // The site is only ever written "AiNaiDee" in Latin script, so the
+          // Thai spellings people actually search for have nothing to match.
+          // alternateName is where they belong; the visible copy carries
+          // "AI ไหนดี" as well (ui.th.home.subtitle).
+          "@type": "WebSite",
+          "name": "AiNaiDee",
+          "alternateName": ["AI ไหนดี", "เอไอไหนดี", "ไอไหนดี", "เอไอ ไหน ดี"],
+          "url": new URL("/", Astro.site).href,
+          "inLanguage": "th"
+        },
+        {
+          "@type": "WebApplication",
+          "name": "AiNaiDee",
+          "url": new URL("/", Astro.site).href,
+          "description": t("home.metaDescription"),
+          "applicationCategory": "DeveloperApplication",
+          "operatingSystem": "Web Browser",
+          "inLanguage": "th",
+          "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+          "creator": { "@type": "Organization", "name": "AiNaiDee", "url": new URL("/", Astro.site).href }
+        }
+      ]
     })}></script>
   </Fragment>
   <NavHeader lang="th" hasTranslation={true} />

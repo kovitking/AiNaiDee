@@ -21,6 +21,10 @@ export default defineConfig({
   },
   integrations: [
     sitemap({
+      // /design is the superseded standalone demo kept only as a reference —
+      // near-duplicate of the real home page, excluded from `astro check`, and
+      // carrying its own <head> with no GA tag. It also sends `noindex`.
+      filter: (page) => !new URL(page).pathname.startsWith('/design'),
       i18n: {
         defaultLocale: 'th',
         locales: {

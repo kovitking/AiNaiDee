@@ -82,7 +82,7 @@ Package manager is **pnpm**, pinned to `11.1.3` via `packageManager`. Do not use
 | `pnpm build` | ~30s; emits `dist/client` + `dist/server/entry.mjs` |
 | `node dist/server/entry.mjs` | run the built site; `HOST` and `PORT` env, defaults `:4321` |
 | `pnpm preview` | serve the production build |
-| `pnpm test` | vitest, 200 tests across 7 files, ~1.5s |
+| `pnpm test` | vitest, 220 tests across 9 files, ~1.5s |
 | `pnpm packages:typecheck` | tsc on both workspace packages, <1s |
 | `pnpm check` | `astro check` over `src/`, `scripts/`, `tests/` — ~15s. **This is the only thing that typechecks `.astro` files and `src/**/*.ts`**; `packages:typecheck` covers neither |
 | `pnpm packages:build` | compiles `packages/compatibility` + `packages/models` to `dist/`, ~1.5s (not `runai`) |
@@ -486,6 +486,71 @@ grep -rhoE "from *[\"'][@a-z][^\"'./][^\"']*[\"']" dist/server/ | sort -u
 
 (Recurse over `dist/server/`, not `dist/server/*.mjs` as this file used to say — the imports live in
 `dist/server/chunks/`, so the globbed form matches nothing and looks falsely clean.)
+
+## SEO — audited 2026-08-23, findings live in a gitignored report
+
+`docs/seo-audit-2026-08-23.md`, with a rendered `docs/seo-audit-2026-08-23.html` beside it, holds
+the full audit of why the live site returns no Google result for either `ainaidee` or `ai ไหนดี`,
+plus a five-phase action plan, a keyword table and a timeline. **Read it before making any
+SEO-related change** — most of the obvious "fixes" are already in place and would be re-done for
+nothing.
+
+**Both files are gitignored on purpose** (`docs/seo-audit-*.md` / `.html` — same treatment as
+`docs/deploy-architecture.html`). They are working documents, not part of the site: do not
+`git add -f` them, do not commit them, do not ship them in a deploy. They also sit in the
+OneDrive-synced tree as on-demand placeholders, so reading either one can time out until it is
+hydrated — which is why the summary below has to stand on its own.
+
+The short version, so a session without the file still knows the shape of the problem:
+
+- **The technical SEO is already correct — do not "fix" it.** 431 URLs in `sitemap-0.xml` (the one
+  child sitemap `sitemap-index.xml` lists — 432 pages are built, `/design/` is filtered out), `robots.txt` open with no disallow, canonical/OG/Twitter
+  complete and derived from `Astro.site`, every page prerendered as static HTML (`prerender = false`
+  appears only under `src/pages/api/`). `robots.txt` is a generated route — `src/pages/robots.txt.ts`,
+  not a file in `public/` — so adding a `public/robots.txt` would shadow it rather than edit it.
+- **Nothing has ever been submitted to Google.** No `google-site-verification` anywhere in `src/`
+  or `public/`; GA4 (`G-F8RD8Z8QXT` in `Layout.astro`) is analytics, not indexing. This is the
+  first thing to do and it is *not* a code change.
+- **Imperva may be blocking Googlebot.** The CWAF sits in front of every hostname (see the
+  `Caddyfile` header comment) and challenges unknown bots by default. Confirm with Search Console's
+  live URL test before touching anything else — if it blocks, nothing else in the plan matters.
+- ~~**The Thai brand name does not exist anywhere on the site.**~~ **Fixed 2026-08-23.** The brand
+  was only ever spelled `AiNaiDee` in Latin script, so a search for "AI ไหนดี" had nothing on the
+  page to match. `ui.th.home.subtitle` now opens with "AI ไหนดี?" (unspaced — that is how the query
+  is typed), and `src/pages/index.astro` emits an `@graph` whose `WebSite` node carries
+  `alternateName: ["AI ไหนดี", "เอไอไหนดี", "ไอไหนดี", "เอไอ ไหน ดี"]`. The home page's `<title>`
+  and description come from new `ui.th.home.metaTitle`/`metaDescription` keys — it was the only page
+  in the site relying on `Layout.astro`'s default title, so those defaults now only serve as a
+  fallback.
+- ~~**`www` and the apex both serve 200 with no redirect between them**~~ **Fixed 2026-08-23** — a
+  `@www host www.ainaidee.com` block with `redir https://ainaidee.com{uri} permanent` now sits above
+  the apex `handle` in the `Caddyfile`. The target must stay an absolute `https://` URL: Imperva
+  terminates TLS and forwards plain HTTP, so Caddy would otherwise redirect visitors to `http://`.
+  **Deploying a `Caddyfile` change needs an extra step** — `scripts/deploy-server.sh` restarts only
+  the `app` container, and caddy's bind mount still points at the moved-aside backup directory, so
+  run `docker compose up -d caddy` in the live directory afterwards or the new config never loads.
+- **426 of the 431 pages are English on a Thai-branded domain** — `/device/` (283), `/model/`
+  (122), `/license/` (16) and `why`/`compare`/`tier`/`docs`/`blog` (5). Only `/`, `/models/` and
+  `/playground/` are Thai; the two `/en/` routes are English on purpose. This is the
+  partial-localization debt already tracked under "Rebranding still to do", seen from the search
+  side, and it is the one item in this section still open.
+- ~~The 122 `/model/` pages declared `lang="th"` around English copy.~~ **Fixed 2026-08-23** —
+  `model/[id].astro` passed no `lang` and fell through to `Layout.astro`'s `lang = currentLocale`
+  default, shipping `<html lang="th">` around an English title, description and body. It now passes
+  `lang="en"`/`locale="en_US"` explicitly, like `device/[id].astro` and `license/[id].astro` already
+  did. That makes them honest, not translated — they move into the 426 above rather than out of it.
+- ~~The stale `/design/` demo is in the sitemap and indexable.~~ **Fixed 2026-08-23** — it is a
+  near-duplicate of the real home page, excluded from `astro check`, with its own `<head>` and no GA
+  tag. It now sends `noindex, follow` and is dropped from the sitemap by a `filter` in
+  `astro.config.mjs`. The page itself is still there as a reference; deleting it stays an option.
+
+Two conclusions in that report deliberately push back on the fork's own premise, and are worth
+knowing before anyone optimizes for the brand name. The Thai phrase "AI ไหนดี" means *"which AI is
+good?"* — its search intent is tool recommendation, not hardware compatibility, so the tool pages
+cannot win it and only comparison articles can; `เครื่องเรารัน AI ได้ไหม` and `[GPU] รัน AI` are the
+queries this site actually answers. And the 283 near-identical `/device/` pages differ by a single
+template variable, which reads to Google as thin content and slows indexing rather than helping it —
+adding more device pages is not an SEO win.
 
 ## Rebranding still to do
 

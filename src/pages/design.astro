@@ -76,6 +76,11 @@ const useCases = [...new Set(rows.flatMap((r) => r.useCase))];
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    {/* Superseded standalone demo: the real home page now renders this layout.
+        It duplicates that page's content almost exactly, so leaving it
+        indexable gave Google two near-identical pages to choose between.
+        Paired with the sitemap `filter` in astro.config.mjs. */}
+    <meta name="robots" content="noindex, follow" />
     <title>เอไอ ไหน ดี? — เครื่องคุณรันโมเดลไหนไหว</title>
     <meta
       name="description"

@@ -54,3 +54,9 @@ docs/deploy-architecture.html
 
 # lockfile for the vendored skill bundle above
 skills-lock.json
+
+# SEO audit reports — internal working documents, not part of the site. Both
+# the markdown and its rendered HTML copy stay out of the repo by request; see
+# the "SEO" section in CLAUDE.md for what they contain. Do not `git add -f`.
+docs/seo-audit-*.md
+docs/seo-audit-*.html

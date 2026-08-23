@@ -52,7 +52,18 @@
 		}
 	}
 
-	# ainaidee.com, www.ainaidee.com — unchanged behavior from phase 1.
+	# www -> apex. Imperva forwards both hostnames to this same origin, so
+	# without this both served 200 for every URL while every canonical pointed
+	# at the apex — two crawlable copies of the whole site. The target must be
+	# an absolute https:// URL: Imperva terminates TLS and forwards plain HTTP,
+	# so Caddy would otherwise build the redirect as http:// and bounce
+	# visitors out of TLS.
+	@www host www.ainaidee.com
+	handle @www {
+		redir https://ainaidee.com{uri} permanent
+	}
+
+	# ainaidee.com (apex) — unchanged behavior from phase 1.
 	handle {
 		# Ported from the old vercel.json: OG images are served as .jpg, so
 		# keep the .png URLs alive for anything that already linked them.

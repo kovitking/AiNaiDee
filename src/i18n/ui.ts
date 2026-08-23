@@ -38,7 +38,14 @@ export const ui = {
     },
     home: {
       title: "เครื่องคุณรัน AI ตัวไหนได้บ้าง?",
-      subtitle: "ตรวจดูว่าเครื่องของคุณรันโมเดล AI ตัวไหนได้จริง",
+      // The Thai spelling of the brand has to appear in real copy somewhere:
+      // the site was only ever spelled "AiNaiDee" in Latin script, so a search
+      // for "AI ไหนดี" had nothing on the page to match. Written unspaced,
+      // which is how the query is actually typed.
+      subtitle: "AI ไหนดี? ตรวจดูว่าเครื่องของคุณรันโมเดล AI ตัวไหนได้จริง",
+      metaTitle: "AiNaiDee (เอไอไหนดี) — เครื่องคุณรัน AI ตัวไหนได้บ้าง?",
+      metaDescription:
+        "เอไอไหนดี (AiNaiDee) ตรวจฮาร์ดแวร์ของคุณและดูว่ารันโมเดล AI ตัวไหนได้บ้าง วิเคราะห์ GPU, CPU และ RAM ในเบราว์เซอร์",
     },
     catalog: {
       title: "โมเดล AI ที่รันเองได้",
