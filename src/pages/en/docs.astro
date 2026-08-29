@@ -4,8 +4,8 @@ import NavHeader from "@/components/NavHeader.astro";
 import Footer from "@/components/Footer.astro";
 import { useTranslations } from "@/i18n/ui";
 
-const t = useTranslations("th");
-const docsURL = new URL("/docs", Astro.site).href;
+const t = useTranslations("en");
+const docsURL = new URL("/en/docs", Astro.site).href;
 const DOCS_TERMS = [
   "Parameters",
   "Quantization",
@@ -19,7 +19,7 @@ const DOCS_TERMS = [
 ];
 ---
 
-<Layout title={t("docs.metaTitle")} description={t("docs.metaDescription")} lang="th" locale="th_TH" hasTranslation={true}>
+<Layout title={t("docs.metaTitle")} description={t("docs.metaDescription")} lang="en" locale="en_US" hasTranslation={true}>
   <Fragment slot="head">
     <script type="application/ld+json" set:html={JSON.stringify({
       "@context": "https://schema.org",
@@ -34,7 +34,7 @@ const DOCS_TERMS = [
       })),
     })}></script>
   </Fragment>
-  <NavHeader lang="th" hasTranslation={true} />
+  <NavHeader lang="en" hasTranslation={true} />
   <main class="mx-auto max-w-3xl px-4 py-12 sm:px-6">
     <header class="mb-10 text-center">
       <h1 class="font-pixel text-2xl tracking-tight text-accent sm:text-3xl">{t("docs.heading")}</h1>
@@ -343,6 +343,6 @@ const DOCS_TERMS = [
       </section>
     </div>
 
-    <Footer lang="th" />
+    <Footer lang="en" />
   </main>
 </Layout>

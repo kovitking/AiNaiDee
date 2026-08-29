@@ -17,7 +17,7 @@ export function getStaticPaths() {
 
 const { id } = Astro.params;
 const license = LICENSE_BY_ID.get(id) as LicenseInfo;
-const t = useTranslations("th");
+const t = useTranslations("en");
 
 const tierLabel = license.tier === "open" ? t("license.tierOpen") : license.tier === "partial" ? t("license.tierPartial") : t("license.tierRestricted");
 const tierColors = license.tier === "open"
@@ -33,7 +33,7 @@ const tierDot = license.tier === "open"
 
 const licenseModels = models.filter((m) => m.license === license.name);
 
-const licenseURL = new URL(`/license/${license.id}`, Astro.site).href;
+const licenseURL = new URL(`/en/license/${license.id}`, Astro.site).href;
 
 const metaTitle = t("license.metaTitle").replace("{license}", license.name);
 const metaDescription = t("license.metaDescription")
@@ -45,8 +45,8 @@ const metaDescription = t("license.metaDescription")
 <Layout
   title={metaTitle}
   description={metaDescription}
-  lang="th"
-  locale="th_TH"
+  lang="en"
+  locale="en_US"
   hasTranslation={true}
   image={`/og/license/${license.id}.jpg`}
 >
@@ -66,16 +66,16 @@ const metaDescription = t("license.metaDescription")
           "name": metaTitle,
           "url": licenseURL,
           "description": `${license.fullName}: ${license.summary}`,
-          "inLanguage": "th"
+          "inLanguage": "en"
         }
       ]
     })}></script>
   </Fragment>
-  <NavHeader lang="th" hasTranslation={true} />
+  <NavHeader lang="en" hasTranslation={true} />
   <main class="mx-auto max-w-3xl px-4 py-12 sm:px-6">
     <!-- Back link -->
     <a
-      href={getRelativeLocaleUrl("th", "models")}
+      href={getRelativeLocaleUrl("en", "models")}
       class="mb-8 inline-flex items-center gap-1.5 font-mono text-[13px] text-muted transition-colors hover:text-accent"
     >
       <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/></svg>
@@ -259,6 +259,6 @@ const metaDescription = t("license.metaDescription")
       </div>
     </div>
 
-    <Footer lang="th" />
+    <Footer lang="en" />
   </main>
 </Layout>

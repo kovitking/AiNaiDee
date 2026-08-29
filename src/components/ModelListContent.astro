@@ -1087,7 +1087,8 @@ function ctxLabel(n: number): string {
     updateAllRows(currentHW)
 
     const slug = deviceKeyToSlug(deviceKey)
-    history.pushState({}, "", `/device/${slug}${qs}`)
+    const localePrefix = window.location.pathname.startsWith("/en/") ? "/en" : ""
+    history.pushState({}, "", `${localePrefix}/device/${slug}${qs}`)
   }
 
   function setupHardwareEditing() {

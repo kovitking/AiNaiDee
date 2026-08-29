@@ -6,25 +6,24 @@ import { getPosts, blogConfigured } from "@/lib/ghost"
 import { useTranslations } from "@/i18n/ui"
 
 const posts = await getPosts()
-const t = useTranslations("th")
+const t = useTranslations("en")
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("th-TH", {
+  return new Date(iso).toLocaleDateString("en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
-    calendar: "gregory",
   })
 }
 
-const blogURL = new URL("/blog", Astro.site).href
+const blogURL = new URL("/en/blog", Astro.site).href
 ---
 
 <Layout
   title={t("blog.metaTitle")}
   description={t("blog.metaDescription")}
-  lang="th"
-  locale="th_TH"
+  lang="en"
+  locale="en_US"
   hasTranslation={true}
 >
   {posts.length > 0 && (
@@ -37,13 +36,13 @@ const blogURL = new URL("/blog", Astro.site).href
         "blogPost": posts.map((post) => ({
           "@type": "BlogPosting",
           "headline": post.title,
-          "url": new URL(`/blog/${post.slug}`, Astro.site).href,
+          "url": new URL(`/en/blog/${post.slug}`, Astro.site).href,
           "datePublished": post.published_at,
         })),
       })}></script>
     </Fragment>
   )}
-  <NavHeader lang="th" hasTranslation={true} />
+  <NavHeader lang="en" hasTranslation={true} />
   <main class="mx-auto max-w-3xl px-4 py-12 sm:px-6">
     <header class="mb-10 text-center">
       <h1 class="font-pixel text-2xl tracking-tight text-accent sm:text-3xl">
@@ -71,7 +70,7 @@ const blogURL = new URL("/blog", Astro.site).href
         <div class="space-y-4">
           {posts.map((post) => (
             <a
-              href={`/blog/${post.slug}`}
+              href={`/en/blog/${post.slug}`}
               class="block rounded-lg border border-edge bg-surface-card p-5 transition-colors hover:border-accent/40"
             >
               <h2 class="font-pixel text-base text-primary">{post.title}</h2>
@@ -91,6 +90,6 @@ const blogURL = new URL("/blog", Astro.site).href
       )
     }
 
-    <Footer lang="th" />
+    <Footer lang="en" />
   </main>
 </Layout>

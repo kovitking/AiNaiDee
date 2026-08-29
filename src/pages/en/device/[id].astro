@@ -14,18 +14,18 @@ export function getStaticPaths() {
 }
 
 const { deviceKey, deviceName } = Astro.props;
-const t = useTranslations("th");
+const t = useTranslations("en");
 
 // Derived from `site` in astro.config.mjs (SITE_URL) rather than hardcoded, so
 // structured data follows the deployment instead of silently naming another site.
-const deviceURL = new URL(`/device/${Astro.params.id}`, Astro.site).href;
+const deviceURL = new URL(`/en/device/${Astro.params.id}`, Astro.site).href;
 ---
 
 <Layout
   title={t("device.metaTitle").replace("{device}", deviceName)}
   description={t("device.metaDescription").replace("{device}", deviceName)}
-  lang="th"
-  locale="th_TH"
+  lang="en"
+  locale="en_US"
   hasTranslation={true}
   image={`/og/device/${Astro.params.id}.jpg`}
 >
@@ -36,18 +36,18 @@ const deviceURL = new URL(`/device/${Astro.params.id}`, Astro.site).href;
       "name": `AiNaiDee — ${deviceName}`,
       "url": deviceURL,
       "description": t("device.jsonLdDescription").replace("{device}", deviceName),
-      "inLanguage": "th",
+      "inLanguage": "en",
       "applicationCategory": "DeveloperApplication",
       "operatingSystem": "Web Browser",
       "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
       "creator": { "@type": "Organization", "name": "AiNaiDee", "url": new URL("/", Astro.site).href }
     })}></script>
   </Fragment>
-  <NavHeader lang="th" hasTranslation={true} />
-  <ModelListContent lang="th" deviceKey={deviceKey}>
+  <NavHeader lang="en" hasTranslation={true} />
+  <ModelListContent lang="en" deviceKey={deviceKey}>
     <header slot="header" class="mb-10 text-center">
       <a
-        href="/"
+        href="/en/"
         class="mb-4 inline-flex items-center gap-1.5 font-mono text-[13px] text-muted transition-colors hover:text-primary"
       >
         <IconArrowLeft class="h-3 w-3" />

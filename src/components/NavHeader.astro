@@ -24,12 +24,12 @@ const links = [
   { path: "/playground", label: t("nav.playground"), translated: false },
   { path: "/compare", label: t("nav.compare"), translated: false },
   { path: "/tier", label: t("nav.tier"), translated: false },
-  { path: "/docs", label: t("nav.docs"), translated: false },
+  { path: "/docs", label: t("nav.docs"), translated: true },
   { path: "/why", label: t("nav.why"), translated: false },
   // Points at the in-repo /blog route for now. Once Caddy maps
   // blog.ainaidee.com -> app:4321/blog/* (see docs/blog-architecture.md),
   // this should become an absolute link to the subdomain instead.
-  { path: "/blog", label: t("nav.blog"), translated: false },
+  { path: "/blog", label: t("nav.blog"), translated: true },
 ].map(({ path, label, translated }) => ({
   label,
   href: translated
@@ -117,7 +117,7 @@ const activePath = pathWithoutLocale.replace(/\/$/, "") || "/";
   aria-hidden="true"
 >
   <div class="flex items-center justify-between px-4 py-2.5">
-    <a href="/" class="flex items-center gap-1 font-pixel text-sm text-accent transition-colors hover:text-primary">
+    <a href={getRelativeLocaleUrl(lang, "/")} class="flex items-center gap-1 font-pixel text-sm text-accent transition-colors hover:text-primary">
       <Logo class="size-3" />
       AiNaiDee
     </a>

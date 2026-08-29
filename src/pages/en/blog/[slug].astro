@@ -15,14 +15,13 @@ export async function getStaticPaths() {
 }
 
 const { post } = Astro.props as { post: GhostPost }
-const t = useTranslations("th")
+const t = useTranslations("en")
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("th-TH", {
+  return new Date(iso).toLocaleDateString("en-US", {
     year: "numeric",
     month: "long",
     day: "numeric",
-    calendar: "gregory",
   })
 }
 
@@ -45,18 +44,18 @@ const jsonLd = {
   description={post.meta_description || post.excerpt}
   image={ogImage}
   type="article"
-  lang="th"
-  locale="th_TH"
+  lang="en"
+  locale="en_US"
   hasTranslation={true}
 >
   <Fragment slot="head">
     <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
   </Fragment>
 
-  <NavHeader lang="th" hasTranslation={true} />
+  <NavHeader lang="en" hasTranslation={true} />
   <main class="mx-auto max-w-3xl px-4 py-12 sm:px-6">
     <a
-      href="/blog"
+      href="/en/blog"
       class="mb-8 inline-flex items-center gap-1.5 font-mono text-xs text-primary/70 transition-colors hover:text-accent"
     >
       <IconArrowLeft class="size-3" />
@@ -91,6 +90,6 @@ const jsonLd = {
       set:html={post.html}
     />
 
-    <Footer lang="th" />
+    <Footer lang="en" />
   </main>
 </Layout>
