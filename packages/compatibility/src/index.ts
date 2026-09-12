@@ -139,6 +139,9 @@ export const GPU_DB: Record<string, { vram: number; bw: number; cores: number }>
   "A100": { vram: 80, bw: 2039, cores: 6912 },
   "A100 40GB": { vram: 40, bw: 1555, cores: 6912 },
   "H100": { vram: 80, bw: 3350, cores: 14592 },
+  // Blackwell Ultra: up to 160 SMs × 128 CUDA cores
+  "GB300-WS": { vram: 252, bw: 7100, cores: 20480 },
+  "GB300": { vram: 288, bw: 8000, cores: 20480 },
   "GH200": { vram: 96, bw: 4000, cores: 16896 },
   "DGX Spark": { vram: 128, bw: 273, cores: 6144 },
   "L40S": { vram: 48, bw: 864, cores: 18176 },
@@ -175,6 +178,8 @@ export const GPU_DB: Record<string, { vram: number; bw: number; cores: number }>
   "Arc A750": { vram: 8, bw: 512, cores: 3584 },
   "Arc A580": { vram: 8, bw: 512, cores: 3072 },
   "Arc A380": { vram: 6, bw: 186, cores: 1024 },
+  "Arc Pro B70": { vram: 32, bw: 608, cores: 4096 }, // 32 Xe2-cores × 128, GDDR6 256-bit
+  "Arc Pro B60": { vram: 24, bw: 456, cores: 2560 }, // 20 Xe2-cores × 128, GDDR6 192-bit
 
   // GTX 16 series
   // Source: NVIDIA official GeForce compare/specs
@@ -250,6 +255,10 @@ export const GPU_DB: Record<string, { vram: number; bw: number; cores: number }>
   "Quadro M520": { vram: 1, bw: 40, cores: 384 }, // corregido
   "Quadro M500M": { vram: 2, bw: 16, cores: 384 }, // corregido
 
+  // NVIDIA Quadro / professional (Kepler)
+  // Source: NVIDIA official specs
+  "Quadro K4200": { vram: 4, bw: 173, cores: 1344 },
+
   // NVIDIA Quadro / professional (Kepler mobile)
   // Source: Notebookcheck
   "Quadro K5100M": { vram: 8, bw: 160, cores: 1536 },
@@ -299,6 +308,8 @@ export const GPU_DB: Record<string, { vram: number; bw: number; cores: number }>
   // Source: AMD official product specs
   "RX 9070 XT": { vram: 16, bw: 640, cores: 4096 }, // corregido
   "RX 9070": { vram: 16, bw: 640, cores: 3584 }, // corregido
+  "RX 9060 XT 8GB": { vram: 8, bw: 320, cores: 2048 }, // Navi 44, GDDR6 128-bit 20Gbps
+  "RX 9060 XT": { vram: 16, bw: 320, cores: 2048 }, // Navi 44, 16 GB SKU (default when size is omitted)
 
   // AMD Discrete Laptop GPUs (RX 7000M/S)
   // Source: AMD official product specs
@@ -348,6 +359,8 @@ export const APPLE_DB: Record<string, { ram: number; bw: number; cpuCores: numbe
   // Criterio usado:
   // - aquí lo dejo en configuración "máxima" del chip dentro de una familia,
   //   para que la tabla sea consistente entre Pro/Max/Ultra.
+  "m6": { ram: 16, bw: 170, cpuCores: 12, gpuCores: 12 },
+  "m5 ultra": { ram: 96, bw: 1200, cpuCores: 36, gpuCores: 80 },
   "m5 max": { ram: 36, bw: 614, cpuCores: 18, gpuCores: 40 }, // corregido
   "m5 pro": { ram: 24, bw: 307, cpuCores: 18, gpuCores: 20 }, // corregido
   "m5": { ram: 16, bw: 153, cpuCores: 10, gpuCores: 10 }, // corregido bw
@@ -606,7 +619,7 @@ export function matchApple(renderer: string): { ram: number; bw: number; cpuCore
 
 export function isAppleSiliconCheck(renderer: string): boolean {
   const r = renderer.toLowerCase();
-  return r.includes("apple") && (r.includes("m1") || r.includes("m2") || r.includes("m3") || r.includes("m4") || r.includes("m5") || r.includes("gpu"));
+  return r.includes("apple") && (r.includes("m1") || r.includes("m2") || r.includes("m3") || r.includes("m4") || r.includes("m5") || r.includes("m6") || r.includes("gpu"));
 }
 
 export function cleanGPUName(renderer: string): string {
@@ -1508,7 +1521,7 @@ export function getGPUCategory(name: string): string {
   if (name.includes("Ada") || name.startsWith("RTX PRO") || name.startsWith("RTX 6000") || name.startsWith("RTX 4500") || name.startsWith("RTX A") || name.startsWith("Quadro") || name.startsWith("NVIDIA T") || /^T\d{3,4}$/.test(name)) return "NVIDIA Pro";
   // Datacenter parts come in capacity variants ("A100 40GB", "Tesla V100 32GB"),
   // so match an optional trailing size rather than listing every SKU.
-  if (/^tesla\b/i.test(name) || /^(a100|h100|h200|b200|gh200|dgx spark|l40s|l20|a10g?|t4)( \d+gb)?$/i.test(name) || /^L4$/i.test(name)) return "NVIDIA Datacenter";
+  if (/^tesla\b/i.test(name) || /^(a100|h100|h200|b200|gb300(-ws)?|gh200|dgx spark|l40s|l20|a10g?|t4)( \d+gb)?$/i.test(name) || /^L4$/i.test(name)) return "NVIDIA Datacenter";
   if (name.startsWith("RTX 50")) return "NVIDIA RTX 50";
   if (name.startsWith("RTX 40")) return "NVIDIA RTX 40";
   if (name.startsWith("RTX 30")) return "NVIDIA RTX 30";
