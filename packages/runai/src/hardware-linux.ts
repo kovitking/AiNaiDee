@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import type { CliHardwareInfo } from "./types";
 
 function run(command: string, args: string[]): string {
@@ -67,27 +67,54 @@ function detectNvidiaGpu(): GpuInfo | null {
   return { name, vendor: "NVIDIA", vramMB, bandwidthGBs: bandwidth };
 }
 
+// Read total VRAM the amdgpu kernel driver exposes in sysfs. rocm-smi is
+// frequently absent on consumer setups, so this is the fallback path. We take
+// the largest card to prefer a discrete GPU over an integrated one's small
+// carveout. Multi-dGPU rigs would need per-card selection.
+function detectAmdVramFromSysfs(): number | null {
+  try {
+    const base = "/sys/class/drm";
+    const cards = readdirSync(base).filter((name) => /^card\d+$/.test(name));
+    let maxMB = 0;
+    for (const card of cards) {
+      try {
+        const raw = readFileSync(`${base}/${card}/device/mem_info_vram_total`, "utf8").trim();
+        const bytes = Number.parseInt(raw, 10);
+        if (Number.isFinite(bytes) && bytes > 0) {
+          maxMB = Math.max(maxMB, Math.round(bytes / (1024 * 1024)));
+        }
+      } catch {
+        // Not an amdgpu-backed card (no mem_info_vram_total); skip it.
+      }
+    }
+    return maxMB > 0 ? maxMB : null;
+  } catch {
+    return null;
+  }
+}
+
 function detectAmdGpu(): GpuInfo | null {
-  const rocmOutput = run("rocm-smi", ["--showmeminfo", "vram", "--csv"]);
-  if (!rocmOutput) return null;
-
-  const lines = rocmOutput.split("\n");
-  const dataLine = lines[1] || "";
-  if (!dataLine) return null;
-
   const lspciOutput = run("lspci", ["-nn"]);
   const amdGpuLine = lspciOutput.split("\n").find((line) =>
     line.toLowerCase().includes("vga") && line.toLowerCase().includes("amd"),
   );
-  const name: string = amdGpuLine
-    ? amdGpuLine.replace(/.*\[AMD.*?\]\s*/, "").replace(/\[.*$/, "").trim()
-    : "AMD GPU";
+  if (!amdGpuLine) return null;
 
+  const name: string = amdGpuLine.replace(/.*\[AMD.*?\]\s*/, "").replace(/\[.*$/, "").trim() || "AMD GPU";
+
+  const rocmOutput = run("rocm-smi", ["--showmeminfo", "vram", "--csv"]);
   let vramMB = 0;
-  const parts = dataLine.split(",");
-  if (parts.length >= 2) {
-    vramMB = Math.round(Number.parseInt(parts[1] ?? "0", 10) / (1024 * 1024)) || 0;
+  const dataLine = rocmOutput.split("\n")[1] || "";
+  if (dataLine) {
+    const parts = dataLine.split(",");
+    if (parts.length >= 2) {
+      vramMB = Math.round(Number.parseInt(parts[1] ?? "0", 10) / (1024 * 1024)) || 0;
+    }
   }
+  if (!vramMB) {
+    vramMB = detectAmdVramFromSysfs() ?? 0;
+  }
+  if (!vramMB) return null;
 
   const bwLookup: Record<string, number> = {
     "7900 XTX": 960, "7900 XT": 800, "7900 GRE": 576,
