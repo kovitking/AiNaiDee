@@ -14,6 +14,11 @@ services:
         # state if unset.
         GHOST_URL: ${GHOST_URL:-}
         GHOST_CONTENT_API_KEY: ${GHOST_CONTENT_API_KEY:-}
+        # Set to a fresh value by scripts/deploy-server.sh on every deploy.
+        # Without it the build layer that fetches those posts is served from
+        # cache whenever the repo is unchanged, so a newly published post
+        # never reaches the site. See the matching note in the Dockerfile.
+        BUILD_ID: ${BUILD_ID:-dev}
     image: ainaidee:latest
     restart: unless-stopped
     environment:

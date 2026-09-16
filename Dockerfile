@@ -38,6 +38,15 @@ ARG GHOST_CONTENT_API_KEY=""
 ENV GHOST_URL=$GHOST_URL
 ENV GHOST_CONTENT_API_KEY=$GHOST_CONTENT_API_KEY
 
+# The step below fetches every Ghost post, but the Ghost database is not
+# something Docker can hash into a cache key. Publishing a post and then
+# redeploying an unchanged repo therefore reused this layer and silently
+# shipped the previous dist/ — the blog frozen as it looked at the last real
+# build. BUILD_ID changes on every deploy, so this layer (and nothing above
+# it — the pnpm install stays cached) is rebuilt each time.
+ARG BUILD_ID=dev
+ENV BUILD_ID=$BUILD_ID
+
 # Filtered to match the install above. A bare `pnpm build` here re-resolves
 # the FULL workspace (including packages/runai's node-llama-cpp, whose native
 # CUDA binaries the npm registry serves flakily) even though nothing in the

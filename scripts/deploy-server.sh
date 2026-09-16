@@ -33,7 +33,10 @@ git clone --quiet "$REPO_URL" "$STAGING_DIR"
 cp "$LIVE_DIR/.env" "$STAGING_DIR/.env"
 
 cd "$STAGING_DIR"
-docker compose build app
+# BUILD_ID busts the Docker layer cache for the Astro build, which is where
+# Ghost posts are fetched. Without it, deploying an unchanged repo after
+# publishing a post rebuilds nothing and reships the old blog HTML.
+BUILD_ID="$(date +%s)" docker compose build app
 
 docker rm -f ainaidee_verify >/dev/null 2>&1 || true
 trap 'docker rm -f ainaidee_verify >/dev/null 2>&1 || true' EXIT
