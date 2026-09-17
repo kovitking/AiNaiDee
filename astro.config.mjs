@@ -26,7 +26,14 @@ export default defineConfig({
       // /design is the superseded standalone demo kept only as a reference —
       // near-duplicate of the real home page, excluded from `astro check`, and
       // carrying its own <head> with no GA tag. It also sends `noindex`.
-      filter: (page) => !new URL(page).pathname.startsWith('/design'),
+      // /blog and /en/blog are now pure 301 redirects to blog.ainaidee.com
+      // (see src/pages/blog/index.astro) — the sitemap integration lists SSR
+      // routes too, not just prerendered ones, so without this filter a
+      // redirecting URL would sit in the sitemap pointing Google at a 301.
+      filter: (page) => {
+        const path = new URL(page).pathname
+        return !path.startsWith('/design') && path !== '/blog/' && path !== '/en/blog/'
+      },
       i18n: {
         defaultLocale: 'th',
         locales: {
