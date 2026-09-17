@@ -4,7 +4,7 @@ packages:
 allowBuilds:
   esbuild: true
   node-llama-cpp: true
-  onnxruntime-node: true
+  onnxruntime-node: false
   protobufjs: true
   sharp: true
 
