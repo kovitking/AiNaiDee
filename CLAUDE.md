@@ -275,18 +275,82 @@ filtering the name. The prefix is `nd-` everywhere now, including the real home 
 (`ModelListContent.astro` was rewritten onto this layout — see "Rebranding still to do"). Do not
 reintroduce `ad-` (or `ads-`, `banner-`, `sponsor-`) anywhere in the site.
 
-### Blog — live, Ghost deployed and wired to the site
+### Blog — `blog.ainaidee.com` is Ghost's own site now, decoupled from Astro (2026-09-17)
+
+**kovit's call, 2026-09-17**: `blog.ainaidee.com` now proxies to the `ghost` container for
+*everything*, not just `/ghost*`/`/content/*` — see the Caddyfile. Visitors there see Ghost's own
+default theme (Casper: English, light background), not the Astro-rendered dark/bilingual `prose`
+page described below. This was a deliberate trade for treating the blog as its own product rather
+than a themed extension of the main site; the accepted cost is real and not yet resolved:
+
+- **Duplicate content.** `ainaidee.com/blog/[slug]` (Astro, still described in full below) and
+  `blog.ainaidee.com/[ghost-slug]` (Ghost's own routing, different URL shape) now both serve the
+  same posts from the same content API, live at the same time, with no canonical link between them.
+  Astro's pages still self-canonicalize to `ainaidee.com/blog/…` (derived from `Astro.site`); Ghost's
+  own pages carry no cross-reference back. Not addressed by this change — revisit if it visibly hurts
+  search indexing.
+- **Ghost's own Preview button now actually works** — this fixes a bug documented below
+  (`/p/<uuid>/` used to get rewritten into a dead `/blog/p/<uuid>/` on the Astro app; now it reaches
+  Ghost directly, which has that route). One genuine improvement from the split.
+- **`blog.ainaidee.com/robots.txt` and `/sitemap.xml`** now come from Ghost itself (core Ghost
+  serves both by default) instead of 404ing behind the old rewrite — not yet verified live after
+  this change; check after the next deploy.
+- Everything in "Post content is styled by `blog/[slug].astro`, not by a Ghost theme" below (the
+  `prose prose-invert` container, the dark-theme framing) **only applies to the `ainaidee.com/blog`
+  copy now** — a visitor on `blog.ainaidee.com` never sees any of that; they see whatever Ghost's
+  default Casper theme renders, unstyled by this repo.
+- **This Caddyfile change does not ship with a normal `scripts/deploy.sh` run.** `deploy-server.sh`
+  only restarts the `app` container; picking up a `Caddyfile` edit needs `docker compose up -d caddy`
+  run separately on the server, same caveat the SEO section already noted for the robots.txt fix
+  that was never made. Do this once after this change lands, then it's live going forward like any
+  other file until the `Caddyfile` changes again.
+
+The `src/pages/blog/*` and `src/pages/en/blog/*` Astro routes, `src/lib/ghost.ts`, the `BUILD_ID`
+cache-bust, and the `prose` styling below are **not being removed** by this change — they keep
+serving the same content at `ainaidee.com/blog/…` as a second, differently-themed copy. Everything
+below this note describes that Astro-rendered copy specifically, not what `blog.ainaidee.com` now
+shows.
 
 `src/lib/ghost.ts` wraps `@tryghost/content-api`. It reads `GHOST_URL` and `GHOST_CONTENT_API_KEY`
 **at build time** (not runtime — see `getPosts`/`getPost`); if either is unset, `api` stays `null`
 and every exported function returns an empty result instead of throwing, so `/blog` and
 `/blog/[slug].astro` render a "coming soon" state and the rest of the site's build is unaffected.
 `blogConfigured` is the flag pages check to decide which state to render. Both are now set as build
-args on the deployed image, so `/blog` renders real Ghost content — currently just Ghost's own
-default "Coming soon" sample post, since no real post has been published yet. **Publishing a new
-post in Ghost admin requires a rebuild+redeploy of the site** to show up; it does not appear on its
-own. `src/pages/og/blog/[slug].jpg.ts` generates a satori OG image fallback for posts without a
+args on the deployed image, so `/blog` renders real Ghost content. **Publishing a post in Ghost
+admin does nothing on its own — the site has to be rebuilt and redeployed**, because both blog
+routes are prerendered: `blog/index.astro` calls `getPosts()` at the top level and
+`blog/[slug].astro` gets its routes from `getStaticPaths()`, so a post that did not exist at build
+time has no page and no route at all.
+
+**A redeploy alone was not enough either, until 2026-09-16.** `deploy-server.sh` re-clones `main`
+every time, but with the repo unchanged `COPY . .` hits the Docker layer cache — so
+`RUN pnpm build`, the step that queries the Ghost API, was served from cache too and the previous
+`dist/` shipped again, blog frozen as it looked at the last build that really ran. Docker has no way
+to notice: the Ghost database is not a build input it can hash. A `BUILD_ID` build arg now sits
+immediately above that step (`Dockerfile`, passed through `docker-compose.yml`, set to
+`$(date +%s)` by `deploy-server.sh`), so the build layer is rebuilt on every deploy while the slow
+`pnpm install` above it stays cached. If a published post still does not show up, read the build
+output: the `RUN pnpm --filter "ainaidee..." build` line must **not** say `CACHED`.
+
+~~**Ghost's own Preview button is broken here and always will be.**~~ **Fixed as a side effect of
+the 2026-09-17 Caddy change above** — it opens `/p/<uuid>/`, which now reaches the `ghost` container
+directly and works. It used to get rewritten into `/blog/p/<uuid>/` on the Astro app, a route that
+doesn't exist there, so Astro's 404 page showed instead of the draft. The preview still won't show
+this repo's dark-theme `prose` framing (nothing on `blog.ainaidee.com` does anymore, per above) — but
+it now at least renders the post's actual Ghost-theme HTML instead of a 404.
+
+`src/pages/og/blog/[slug].jpg.ts` generates a satori OG image fallback for posts without a
 `feature_image`.
+
+**Post content is styled by `blog/[slug].astro`, not by a Ghost theme** — `post.html` goes into a
+`prose prose-invert` container with `[&_h2]:font-pixel [&_h2]:text-primary`, `[&_img]:rounded-lg
+[&_img]:border [&_img]:border-edge`, inside `max-w-3xl` on the site's dark `bg-surface` (`#17162b`).
+Write posts with plain Ghost blocks and they inherit all of that correctly. Two consequences worth
+knowing before writing one: custom HTML carrying its own colors is **not** re-themed, so anything
+authored for a white background comes out unreadable (the `prompt-security` post published
+2026-09-05 has dark-blue headings that are effectively invisible); and light-background images land
+as bright rectangles on a dark page, so matte them first — pad the image with `#17162b` and the
+template's rounded border makes the frame look deliberate.
 
 `docker-compose.yml` defines `ghost` (image `ghost:6-alpine`) and `ghost-db` (MySQL 8, not SQLite —
 Ghost's Docker image restricts SQLite to `NODE_ENV=development`) behind `profiles: ["blog"]`, so
@@ -575,12 +639,12 @@ The short version, so a session without the file still knows the shape of the pr
     from `Astro.site`, so that one variable moves all of them. `astro.config.mjs`'s fallback moved
     to `www` too, so a local `pnpm build` matches production. **Do not flip this back to the apex
     without also changing the Imperva rule** — that is what created the mismatch in the first place.
-- **`blog.ainaidee.com` serves no `robots.txt` and no sitemap** — both 404 (measured 2026-08-23).
-  The `Caddyfile`'s `@passthrough` list covers `/_astro/*`, `/og/*`, `/blog*` and the favicons; every
-  other path is rewritten to `/blog{uri}` on the app, so `/robots.txt` becomes `/blog/robots.txt`
-  and 404s. Blog pages canonicalize to `ainaidee.com/blog/…` regardless, so this is minor — but
-  adding `/robots.txt` to that passthrough list is a one-line fix if the blog is ever meant to be
-  crawled on its own hostname.
+- ~~**`blog.ainaidee.com` serves no `robots.txt` and no sitemap** — both 404.~~ **Moot as of
+  2026-09-17**: `blog.ainaidee.com` now proxies entirely to the `ghost` container (see the Blog
+  section), so both paths are whatever Ghost core serves by default there, not routed through Astro
+  at all anymore. Not yet re-verified live. The duplicate-content question this reopens — Ghost's
+  own pages at `blog.ainaidee.com/[slug]` vs. Astro's at `ainaidee.com/blog/[slug]`, with no
+  canonical link between them — is a new, larger version of what this bullet used to call "minor."
 - **426 of the 431 pages are English on a Thai-branded domain** — `/device/` (283), `/model/`
   (122), `/license/` (16) and `why`/`compare`/`tier`/`docs`/`blog` (5). Only `/`, `/models/` and
   `/playground/` are Thai; the two `/en/` routes are English on purpose. This is the

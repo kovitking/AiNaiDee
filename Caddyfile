@@ -20,35 +20,24 @@
 
 	@blog_host host blog.ainaidee.com
 	handle @blog_host {
-		# Ghost admin and uploaded media go to the ghost container. Imperva
-		# terminates TLS and forwards plain HTTP, so X-Forwarded-Proto must be
-		# forced to https here — otherwise Ghost marks its session cookie
-		# Secure-for-an-http-origin and admin login silently fails with 403s.
-		# Edge protection for /ghost* (Imperva Login Protect) lives on the
-		# Imperva side, not here.
-		@ghost path /ghost /ghost/* /content/*
-		handle @ghost {
-			reverse_proxy ghost:2368 {
-				header_up X-Forwarded-Proto https
-			}
-		}
-
-		# src/pages/blog/* renders under /blog on the app, but the rendered
-		# pages themselves link and load assets with root-relative paths that
-		# assume the main domain (NavHeader's /blog link, /_astro/* bundles,
-		# /og/blog/*.jpg OG images, /favicon.svg) — pass those straight
-		# through unprefixed so they don't get double-prefixed by the rewrite
-		# below.
-		@passthrough path /_astro/* /og/* /blog /blog/* /favicon.svg /favicon.ico
-		handle @passthrough {
-			reverse_proxy app:4321
-		}
-
-		# Everything else (subdomain root, post slugs) maps into /blog/*
-		# internally.
-		handle {
-			rewrite * /blog{uri}
-			reverse_proxy app:4321
+		# blog.ainaidee.com is Ghost's own site now, full stop — kovit's call
+		# 2026-09-17, deliberately accepting the duplicate-content risk this
+		# creates against ainaidee.com/blog/[slug] (the Astro-rendered copy,
+		# fetched from the same Ghost content API, still exists and is not
+		# being removed by this change). See CLAUDE.md's Blog section.
+		#
+		# Previously this proxied to app:4321 with a /blog{uri} rewrite so
+		# src/pages/blog/* could render Ghost's content inside the Astro site's
+		# own dark theme; that whole path is gone. Ghost's default theme
+		# (Casper, English, light) is what visitors see here now.
+		#
+		# Imperva terminates TLS and forwards plain HTTP, so X-Forwarded-Proto
+		# must be forced to https for every request here, not just /ghost* —
+		# otherwise Ghost marks its session cookie Secure-for-an-http-origin
+		# and admin login silently fails with 403s. Edge protection for
+		# /ghost* (Imperva Login Protect) lives on the Imperva side, not here.
+		reverse_proxy ghost:2368 {
+			header_up X-Forwarded-Proto https
 		}
 	}
 

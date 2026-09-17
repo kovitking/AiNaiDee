@@ -40,7 +40,8 @@ services:
   # Content API key. This avoids the race where a public, unprotected /ghost
   # lets someone else claim the owner account before you do. See
   # docs/blog-plan.md for the full plan and docs/blog-architecture.md for the
-  # Caddy routing this pairs with (blog.ainaidee.com -> app:4321, /blog{uri}).
+  # Caddy routing this pairs with (blog.ainaidee.com -> ghost:2368 for
+  # everything, not just /ghost* — see the Caddyfile comment, 2026-09-17).
   #
   # MySQL, not SQLite (decided 2026-07-31, revised same day): SQLite is
   # development-only in Ghost's official Docker image, and this server already
@@ -115,10 +116,10 @@ services:
   # dashboard). Caddy's only job is Host-based routing on that one port —
   # NOT certificates (`auto_https off` in the Caddyfile; a same-box Let's
   # Encrypt/ZeroSSL ACME challenge can never reach this container, since
-  # Imperva's edge answers every request to these hostnames first) — mainly
-  # so blog.ainaidee.com's traffic gets the /blog{uri} rewrite that
-  # src/pages/blog/* needs while ainaidee.com/www pass straight through
-  # unchanged. See Caddyfile and docs/blog-architecture.md.
+  # Imperva's edge answers every request to these hostnames first).
+  # blog.ainaidee.com routes entirely to the ghost container now (kovit's
+  # call 2026-09-17 — see Caddyfile); ainaidee.com/www pass straight through
+  # to app unchanged. See Caddyfile and docs/blog-architecture.md.
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
