@@ -26,10 +26,14 @@ const links = [
   { path: "/tier", label: t("nav.tier"), translated: false },
   { path: "/docs", label: t("nav.docs"), translated: true },
   { path: "/why", label: t("nav.why"), translated: false },
-  // Points at the in-repo /blog route for now. Once Caddy maps
-  // blog.ainaidee.com -> app:4321/blog/* (see docs/blog-architecture.md),
-  // this should become an absolute link to the subdomain instead.
-  { path: "/blog", label: t("nav.blog"), translated: true },
+  // Absolute link to the subdomain — blog.ainaidee.com is Ghost's own site now
+  // (2026-09-17, see CLAUDE.md's Blog section), fully decoupled from Astro.
+  // Not `translated`/locale-prefixed: it's an external URL, and Ghost has no
+  // bilingual routing of its own. `ainaidee.com/blog/[slug]` (the old in-repo
+  // route this used to point at) still exists as a separate, differently-
+  // themed copy of the same content, but the nav should send visitors to the
+  // real site, not the duplicate.
+  { path: "https://blog.ainaidee.com/", label: t("nav.blog"), translated: false },
 ].map(({ path, label, translated }) => ({
   label,
   href: translated
