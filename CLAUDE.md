@@ -299,11 +299,14 @@ than a themed extension of the main site; the accepted cost is real and not yet 
   `prose prose-invert` container, the dark-theme framing) **only applies to the `ainaidee.com/blog`
   copy now** — a visitor on `blog.ainaidee.com` never sees any of that; they see whatever Ghost's
   default Casper theme renders, unstyled by this repo.
-- **This Caddyfile change does not ship with a normal `scripts/deploy.sh` run.** `deploy-server.sh`
-  only restarts the `app` container; picking up a `Caddyfile` edit needs `docker compose up -d caddy`
-  run separately on the server, same caveat the SEO section already noted for the robots.txt fix
-  that was never made. Do this once after this change lands, then it's live going forward like any
-  other file until the `Caddyfile` changes again.
+- **A `Caddyfile` change does not ship with a normal `scripts/deploy.sh` run**, and — measured
+  2026-09-17 — **`docker compose up -d caddy` does not pick it up either.** `deploy-server.sh` only
+  restarts the `app` container, and a bind-mounted file's content is not something Compose diffs when
+  deciding whether to recreate a container: `docker compose up -d caddy` against a running container
+  reports `Running`, not `Recreating`, and Caddy keeps serving whatever config it already loaded into
+  memory. The command that actually works is **`docker compose restart caddy`** — a real process
+  restart, which re-reads the file from disk. Run this (not `up -d`) any time the `Caddyfile` changes,
+  after the normal deploy has updated the file on disk.
 
 The `src/pages/blog/*` and `src/pages/en/blog/*` Astro routes, `src/lib/ghost.ts`, the `BUILD_ID`
 cache-bust, and the `prose` styling below are **not being removed** by this change — they keep
