@@ -32,6 +32,8 @@ import IconLmStudio from "@/icons/logo-lmstudio.svg"
 import IconLicense from "@/icons/license.svg"
 import IconSliders from "@/icons/sliders.svg"
 import { getModelTitleTransitionName } from "@/lib/view-transitions"
+import { GPU_DB, evaluateModel, type HardwareInfo } from "@/lib/hardware"
+import { deviceKeyToSlug } from "@/lib/device-slugs"
 
 export function getStaticPaths() {
   return models.map((model) => ({
@@ -59,6 +61,99 @@ function formatNum(n: number): string {
   return String(n)
 }
 
+const q4Quant = model.quants.find((q: any) => q.name === "Q4_K_M") ?? model.quants[2]
+
+// "GPUs that run it" — computed at build time against GPU_DB, rendered as static
+// HTML so GPU names are crawlable for "<gpu> <model>" queries. Each GPU is modelled
+// as a desktop card with 32 GB of system RAM and graded with the same
+// evaluateModel() the client-side detector uses, at the Q4_K_M footprint.
+const GPU_TIER_LIMIT = 4
+const GPU_PER_TIER = 3
+const GPU_TOTAL_LIMIT = 10
+
+// Mobile-part names: "… Laptop", "RX 7600M", "RX 7600M XT", "RX 7700S", "Arc A770M".
+const isMobileGPU = (name: string) => /Laptop$|\dM( XT)?$|\dS$/.test(name)
+// Current-ish consumer desktop cards — what most visitors actually own or shop for.
+const isConsumerGPU = (name: string) =>
+  !isMobileGPU(name) &&
+  /^(RTX [2-5]0\d0|GTX 1[06]\d0|RX [5-9]\d{2,3}|Radeon VII|Arc [AB]\d{3})( |$)/.test(name)
+const gpuBrand = (name: string) =>
+  /^(RX|Radeon)/.test(name) ? "amd" : /^Arc/.test(name) ? "intel" : "nvidia"
+
+function gpuHardware(spec: { vram: number; bw: number; cores: number }): HardwareInfo {
+  return {
+    gpuRenderer: null,
+    gpuVendor: null,
+    gpuCores: spec.cores,
+    ramGB: 32,
+    estimatedVRAM: spec.vram,
+    memoryBandwidth: spec.bw,
+    systemRAM: 32,
+    deviceMemoryRaw: null,
+    webgpu: false,
+    webgpuDevice: null,
+    webgpuArch: null,
+    isAppleSilicon: false,
+    totalUsableRAM: null,
+    platform: null,
+    cpuBenchmark: null,
+    isMobile: false,
+    deviceName: null,
+  }
+}
+
+type GpuFit = { name: string; vram: number; slug: string }
+const gpuFits: Record<"can-run" | "tight", GpuFit[]> = { "can-run": [], tight: [] }
+for (const [name, spec] of Object.entries(GPU_DB)) {
+  if (!spec.vram) continue // integrated GPUs share system RAM; not a VRAM claim
+  const status = evaluateModel(q4Quant.vramGB, gpuHardware(spec))
+  if (status === "can-run" || status === "tight") {
+    gpuFits[status].push({ name, vram: spec.vram, slug: deviceKeyToSlug(`gpu:${name}`) })
+  }
+}
+
+// Group by VRAM ascending (smallest card that fits first), then pick a few
+// representatives per tier: consumer desktop cards first, one per brand, so a
+// 24 GB tier shows both an RTX 4090 and an RX 7900 XTX rather than three NVIDIAs.
+function pickGpuTiers(fits: GpuFit[]) {
+  const byVram = new Map<number, GpuFit[]>()
+  for (const g of fits) byVram.set(g.vram, [...(byVram.get(g.vram) ?? []), g])
+  const tiers: { vram: number; gpus: GpuFit[] }[] = []
+  let total = 0
+  // Tiers holding only pro/data-center parts (a lone 5 GB Quadro, a 40 GB A100)
+  // are noise when consumer cards fit too — show them only for models that need them.
+  const anyConsumer = fits.some((g) => isConsumerGPU(g.name))
+  for (const vram of [...byVram.keys()].sort((a, b) => a - b)) {
+    if (tiers.length >= GPU_TIER_LIMIT || total >= GPU_TOTAL_LIMIT) break
+    const all = byVram.get(vram)!
+    const consumer = all.filter((g) => isConsumerGPU(g.name))
+    if (anyConsumer && consumer.length === 0) continue
+    const picks: GpuFit[] = []
+    const brands = new Set<string>()
+    for (const g of consumer) {
+      if (brands.has(gpuBrand(g.name))) continue
+      brands.add(gpuBrand(g.name))
+      picks.push(g)
+    }
+    // Tiers with no consumer card (48 GB, 80 GB …): fall back to workstation /
+    // data-center parts, desktop before mobile, in GPU_DB order (newest first).
+    const rest = [...consumer, ...all.filter((g) => !isMobileGPU(g.name)), ...all]
+    for (const g of rest) if (!picks.includes(g)) picks.push(g)
+    const take = picks.slice(0, Math.min(GPU_PER_TIER, GPU_TOTAL_LIMIT - total))
+    tiers.push({ vram, gpus: take })
+    total += take.length
+  }
+  return tiers
+}
+
+const gpuComfortTiers = pickGpuTiers(gpuFits["can-run"])
+const gpuTightTiers = gpuComfortTiers.length ? [] : pickGpuTiers(gpuFits.tight)
+const gpuTiers = gpuComfortTiers.length ? gpuComfortTiers : gpuTightTiers
+// Minimum over every fitting GPU, not just the tiers shown in the table.
+const gpuMinVram = gpuFits["can-run"].length
+  ? Math.min(...gpuFits["can-run"].map((g) => g.vram))
+  : null
+
 const licenseTier = getLicenseTier(model.license)
 const licenseColors = licenseTier === "open"
   ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-400"
@@ -83,8 +178,8 @@ const USE_CASE_ICONS: Record<string, any> = {
 ---
 
 <Layout
-  title={`${model.name} — AiNaiDee`}
-  description={`${model.name} by ${model.provider}. ${model.description}`}
+  title={`${model.name}: VRAM & System Requirements — AiNaiDee`}
+  description={`${q4Quant.vramGB} GB VRAM to run ${model.name} at Q4 quantization (min ${model.minRamGB} GB RAM). ${model.provider} — ${model.description}`}
   lang="en"
   locale="en_US"
   image={`/og/${model.id}.jpg`}
@@ -382,6 +477,65 @@ const USE_CASE_ICONS: Record<string, any> = {
               </tbody>
             </table>
           </div>
+        </section>
+
+        <!-- GPUs that run it — prerendered from GPU_DB at build time, no client JS -->
+        <section class="mb-8">
+          <h2 class="mb-3 font-pixel text-sm text-muted">GPUs that run {model.name}</h2>
+          {gpuComfortTiers.length > 0 ? (
+            <p class="mb-3 text-[13px] text-secondary">
+              {model.name} needs about <span class="font-mono text-primary">{q4Quant.vramGB} GB</span> of
+              VRAM at {q4Quant.name}, so it runs comfortably on a GPU with
+              <span class="font-mono text-primary">{gpuMinVram} GB</span> of VRAM or more
+              ({gpuFits["can-run"].length} of the GPUs we track). Common cards, smallest first:
+            </p>
+          ) : gpuTightTiers.length > 0 ? (
+            <p class="mb-3 text-[13px] text-secondary">
+              {model.name} needs about <span class="font-mono text-primary">{q4Quant.vramGB} GB</span> of
+              VRAM at {q4Quant.name}. No single GPU we track runs it with headroom; these fit it
+              tightly (short context, little room for anything else):
+            </p>
+          ) : (
+            <p class="rounded-lg border border-edge bg-surface-card/30 px-4 py-3 text-[13px] text-secondary">
+              {model.name} needs about <span class="font-mono text-primary">{q4Quant.vramGB} GB</span> of
+              VRAM at {q4Quant.name} — more than any single GPU we track. Running it takes multiple GPUs,
+              a large unified-memory machine, or CPU offload with plenty of system RAM.
+            </p>
+          )}
+          {gpuTiers.length > 0 && (
+            <div class="overflow-x-auto rounded-lg border border-edge">
+              <table class="w-full text-[13px]">
+                <thead>
+                  <tr
+                    class="border-b border-edge bg-surface-card text-left text-xs uppercase tracking-wider text-muted"
+                  >
+                    <th class="w-24 px-4 py-2.5">VRAM</th>
+                    <th class="px-4 py-2.5">GPUs</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {gpuTiers.map((tier, i) => (
+                    <tr class={`border-b border-edge/50 ${i % 2 === 0 ? "bg-surface-card/50" : ""}`}>
+                      <td class="px-4 py-2 font-mono text-secondary">{tier.vram} GB</td>
+                      <td class="px-4 py-2 font-mono">
+                        {tier.gpus.map((g, j) => (
+                          <>
+                            {j > 0 && <span class="text-muted">, </span>}
+                            <a
+                              href={`/device/${g.slug}`}
+                              class="text-primary transition-colors hover:text-accent"
+                            >
+                              {g.name}
+                            </a>
+                          </>
+                        ))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
 
         <!-- Ollama README, falling back to the catalog description when no README was scraped -->
