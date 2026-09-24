@@ -58,6 +58,27 @@
 		@og_png path_regexp og_png ^/og/(.+)\.png$
 		redir @og_png /og/{re.og_png.1}.jpg permanent
 
+		# SEO: no-slash page URLs (e.g. /model/gemma2-2b) currently 200 instead
+		# of redirecting to the canonical .../model/gemma2-2b/ — every
+		# canonical tag, sitemap entry and JSON-LD URL Astro emits already uses
+		# the trailing-slash form (Astro's own prerendered output is
+		# <path>/index.html), so this just makes direct requests match what
+		# the site already claims is canonical. Deliberately done here, not
+		# via astro.config.mjs's trailingSlash: "always" — that setting is
+		# global and would also 301 every /api/* request, breaking the public
+		# JSON API's documented no-slash contract (and POST call shapes) for
+		# no SEO benefit, since API responses aren't indexed. The extension
+		# allowlist below is deliberately explicit, not a bare `\.\w+$`: model
+		# ids like glm-5.1, deepseek-v3.2 and ltx-2.3 end in a dot + digits
+		# that a generic "has a dot" regex would misread as a file extension
+		# and skip.
+		@needs_trailing_slash {
+			not path */
+			not path /api/*
+			not path_regexp \.(jpg|jpeg|png|gif|webp|svg|ico|css|js|mjs|wasm|json|xml|txt|woff2?|ttf|eot|map|webmanifest|pdf)$
+		}
+		redir @needs_trailing_slash {http.request.uri.path}/ 301
+
 		reverse_proxy app:4321
 	}
 
