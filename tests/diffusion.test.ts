@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { models, getEvaluationOptions, isDiffusionModel } from "../src/data/models";
 import {
+  computeDiffusionScore,
   computeScore,
   evaluateModelComplete,
   scoreToGrade,
   type Grade,
   type HardwareInfo,
 } from "../src/lib/hardware";
+import { evaluateCompatibility, findModel, resolveHardware } from "../src/lib/compatibility-api";
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -257,5 +259,93 @@ describe("a tight fit never grades below an offloaded one", () => {
 
   it("leaves cannot-run at F", () => {
     expect(scoreToGrade(computeScore("cannot-run", 8, 5, 200), "cannot-run")).toBe("F");
+  });
+});
+
+// ── Diffusion grades follow fit ──────────────────────────────
+
+describe("a diffusion model that fits is not graded as barely running", () => {
+  // Before computeDiffusionScore, a missing speed estimate got a flat neutral
+  // term: Wan 2.1 1.3B fit comfortably on a 4090 and still graded D.
+  const order: Grade[] = ["F", "D", "C", "B", "A", "S"];
+  const rank = (g: Grade) => order.indexOf(g);
+  const hardware = [
+    makeHW({ estimatedVRAM: 12, systemRAM: 32, memoryBandwidth: 360 }),
+    RTX_4090,
+    makeHW({ estimatedVRAM: 32, systemRAM: 64, memoryBandwidth: 1792 }),
+    makeHW({ estimatedVRAM: 80, systemRAM: 256, memoryBandwidth: 3350 }),
+    M4_AIR_24GB,
+    makeHW({ isAppleSilicon: true, totalUsableRAM: 128, ramGB: 128, memoryBandwidth: 546 }),
+  ];
+
+  it("grades can-run at B or A, never S without a speed estimate", () => {
+    for (const model of diffusionModels) {
+      for (const hw of hardware) {
+        for (const quant of model.quants) {
+          const { status, grade } = evaluateModelComplete(
+            quant.vramGB, hw, model.paramsBillions, getEvaluationOptions(model),
+          );
+          if (status !== "can-run") continue;
+          expect(["B", "A"], `${model.id} ${quant.name}`).toContain(grade);
+        }
+      }
+    }
+  });
+
+  it("never grades a better fit below a worse one", () => {
+    const statusRank = { "cannot-run": 0, "can-run-slow": 1, tight: 2, "can-run": 3 } as const;
+    for (const model of diffusionModels) {
+      const results = hardware.flatMap((hw) =>
+        model.quants.map((quant) =>
+          evaluateModelComplete(quant.vramGB, hw, model.paramsBillions, getEvaluationOptions(model)),
+        ),
+      );
+      for (const a of results) {
+        for (const b of results) {
+          if (statusRank[a.status as keyof typeof statusRank] > statusRank[b.status as keyof typeof statusRank]) {
+            expect(rank(a.grade), `${model.id}: ${a.status} vs ${b.status}`).toBeGreaterThanOrEqual(rank(b.grade));
+          }
+        }
+      }
+    }
+  });
+
+  it("puts Wan 2.1 1.3B on a 4090 at B", () => {
+    const model = models.find((m) => m.id === "wan2.1-t2v-1.3b")!;
+    const { status, grade } = evaluateModelComplete(
+      quantOf("wan2.1-t2v-1.3b", "Q4_K_M").vramGB, RTX_4090, model.paramsBillions, getEvaluationOptions(model),
+    );
+    expect(status).toBe("can-run");
+    expect(grade).toBe("B");
+  });
+
+  it("leaves autoregressive scoring alone", () => {
+    expect(computeDiffusionScore("cannot-run", 5, 50)).toBe(0);
+    const llm = models.find((m) => m.id === "qwen3-vl-8b")!;
+    const q4 = quantOf("qwen3-vl-8b", "Q4_K_M");
+    const r = evaluateModelComplete(q4.vramGB, RTX_4090, llm.paramsBillions, getEvaluationOptions(llm));
+    expect(r.score).toBe(computeScore(r.status, r.toksPerSec, llm.paramsBillions, r.memPct));
+  });
+});
+
+// ── Public API notes ─────────────────────────────────────────
+
+describe("compatibility API notes for diffusion", () => {
+  const hw = resolveHardware({ gpu: { name: "RTX 4090" }, ramGb: 64 });
+  if (!hw.ok) throw new Error(hw.error);
+
+  it("does not mention the KV cache or tokens for an image or video model", () => {
+    const result = evaluateCompatibility(hw.value.hw, findModel("wan2.1-t2v-1.3b")!);
+    if (!result.ok) throw new Error(result.error);
+    const text = result.value.notes.join(" ");
+    expect(text).not.toMatch(/KV cache|tokens\/second|context length/);
+    expect(text).toMatch(/pipeline peak/);
+    expect(text).toMatch(/not estimated/);
+  });
+
+  it("keeps the KV-cache note for an LLM", () => {
+    const result = evaluateCompatibility(hw.value.hw, findModel("qwen3-vl-8b")!);
+    if (!result.ok) throw new Error(result.error);
+    expect(result.value.notes.join(" ")).toMatch(/KV cache/);
   });
 });

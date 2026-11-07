@@ -1,5 +1,6 @@
 import {
   getEvaluationOptions,
+  isDiffusionModel,
   models,
   type AIModel,
   type Quantization,
@@ -242,6 +243,7 @@ function compatibilityNotes(
   recommended: Quantization,
   headroom: number | null,
   tokensPerSecond: number | null,
+  diffusion: boolean,
 ): string[] {
   const notes: string[] = [];
 
@@ -249,7 +251,9 @@ function compatibilityNotes(
     notes.push("The model should fit comfortably in available memory.");
   } else if (status === "tight") {
     notes.push(
-      "The model fits with little headroom; reduce context length if memory errors occur.",
+      diffusion
+        ? "The model fits with little headroom; lower the resolution, frame count or batch size if memory errors occur."
+        : "The model fits with little headroom; reduce context length if memory errors occur.",
     );
   } else if (status === "can-run-slow") {
     notes.push(
@@ -266,12 +270,18 @@ function compatibilityNotes(
   }
   if (headroom !== null && headroom > 0 && status !== "cannot-run") {
     notes.push(
-      `About ${round1(headroom)} GB remains for context and the KV cache.`,
+      diffusion
+        ? `About ${round1(headroom)} GB remains above the estimated pipeline peak (weights, text encoder, VAE and activations).`
+        : `About ${round1(headroom)} GB remains for context and the KV cache.`,
     );
   }
   if (tokensPerSecond !== null) {
     notes.push(
       `Estimated at roughly ${tokensPerSecond} tokens/second from memory bandwidth.`,
+    );
+  } else if (diffusion && status !== "cannot-run") {
+    notes.push(
+      "Generation speed is not estimated for image and video models; the grade reflects memory fit only.",
     );
   }
 
@@ -340,6 +350,7 @@ function buildCompatibilityResult(
       recommended,
       headroom,
       result.toksPerSec,
+      isDiffusionModel(model),
     ),
   };
 }

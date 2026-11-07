@@ -103,7 +103,7 @@ Package manager is **pnpm**, pinned to `11.1.3` via `packageManager`. Do not use
 | `pnpm build` | ~30s; emits `dist/client` + `dist/server/entry.mjs` |
 | `node dist/server/entry.mjs` | run the built site; `HOST` and `PORT` env, defaults `:4321` |
 | `pnpm preview` | serve the production build |
-| `pnpm test` | vitest, 220 tests across 9 files, ~1.5s |
+| `pnpm test` | vitest, 287 tests across 11 files, ~1.5s |
 | `pnpm packages:typecheck` | tsc on both workspace packages, <1s |
 | `pnpm check` | `astro check` over `src/`, `scripts/`, `tests/` — ~15s. **This is the only thing that typechecks `.astro` files and `src/**/*.ts`**; `packages:typecheck` covers neither |
 | `pnpm packages:build` | compiles `packages/compatibility` + `packages/models` to `dist/`, ~1.5s (not `runai`) |
@@ -202,7 +202,7 @@ Hardware support lives in lookup tables, not in detection logic — extend `GPU_
 
 ### Model catalog — `packages/models/src/index.ts`
 
-122 models, each a one-line entry in the `STATIC_MODELS` array (the README's "68+" is stale). The
+176 models (as of the 2026-11-07 upstream sync), each a one-line entry in the `STATIC_MODELS` array (the README's "68+" is stale). The
 module is longer than a headcount implies because sizes are **derived, not hand-written**:
 
 - `makeQuants(paramsB)` generates all 7 quantization levels (Q2_K → F16) from the parameter count,
@@ -225,8 +225,13 @@ disagrees and puts `qwen3-coder-30b` in its dense-27B lineage; the divergence is
 `tests/lineage.test.ts` pins it.)
 
 The catalog also carries **image and video generation models** (`useCase: ["image"]` / `["video"]`).
-They are graded by a scorer built for LLMs, so their tok/s numbers are not meaningful — the VRAM fit
-is. Upstream has the same limitation.
+They carry `memoryProfile: "diffusion"`: `makeDiffusionQuants` sizes them as denoiser weights plus
+resident companions (text encoder, VAE) plus an activation peak, tok/s is suppressed (`null`), and
+`computeDiffusionScore` grades them on fit and headroom alone — `can-run` lands at B–A (never S,
+since speed is unknown), `tight` at D–C. Upstream still runs them through `computeScore`'s neutral
+speed term, which graded a comfortable fit as D; that divergence is intentional and
+`tests/diffusion.test.ts` pins it. Thread `getEvaluationOptions(model)` into every
+`evaluateModelComplete` call, or a diffusion model silently falls back to the LLM path.
 
 ### Public API — `src/pages/api/`
 

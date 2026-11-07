@@ -1346,6 +1346,38 @@ export function computeScore(status: ModelStatus, toksPerSec: number | null, par
   return Math.round(((speedScore * 0.55 + headroomScore * 0.35 + qualityBonus) * fitMultiplier));
 }
 
+/**
+ * Score for image/video generators, which have no tokens/s estimate.
+ *
+ * `computeScore` gives a missing speed a flat neutral term, which caps a model
+ * that fits with room to spare at B and drops one that merely fits (`can-run`,
+ * "comfortable" in the API) to D, "Barely runs". For a diffusion pipeline the
+ * fit *is* the whole signal: its `vramGB` already includes the activation peak.
+ * So each status gets its own band and headroom places the model within it:
+ *
+ *   can-run       55–84  B..A   fits; never S, since speed is unknown
+ *   tight         20–55  D..C   fits only just
+ *   can-run-slow   0–60  D..C   offloads (scoreToGrade caps it at C)
+ */
+export function computeDiffusionScore(status: ModelStatus, paramsBillions: number, memPct: number | null = null): number {
+  if (status === "cannot-run" || status === "unknown") return 0;
+
+  let headroomScore = 45;
+  if (memPct !== null) {
+    if (memPct <= 20) headroomScore = 100;
+    else if (memPct <= 40) headroomScore = lerp(memPct, 20, 40, 100, 75);
+    else if (memPct <= 60) headroomScore = lerp(memPct, 40, 60, 75, 45);
+    else if (memPct <= 80) headroomScore = lerp(memPct, 60, 80, 45, 20);
+    else headroomScore = lerp(Math.min(memPct, 100), 80, 100, 20, 0);
+  }
+  const qualityBonus = Math.min(12, Math.log2(paramsBillions + 1) * 2);
+  const fit = headroomScore * 0.88 + qualityBonus; // 0..100
+
+  if (status === "can-run") return Math.round(55 + fit * 0.29);
+  if (status === "tight") return Math.round(20 + fit * 0.35);
+  return Math.round(fit * 0.6);
+}
+
 export function scoreToGrade(score: number, status: ModelStatus): Grade {
   if (status === "cannot-run") return "F";
   if (status === "unknown") return "?";
@@ -1402,13 +1434,15 @@ export function evaluateModelComplete(
     ? Math.max(0.5, vramGB * (activeParams / paramsBillions))
     : vramGB;
   const status = evaluateModel(vramGB, hw);
-  // `computeScore` falls back to a neutral speed term when this is null, so the
-  // grade rests on fit and memory headroom — the parts that do transfer.
-  const toksPerSec = options.memoryProfile === "diffusion"
+  const isDiffusion = options.memoryProfile === "diffusion";
+  const toksPerSec = isDiffusion
     ? null
     : estimateTokensPerSecond(speedWorkingSetGB, hw, { residentModelGB: vramGB });
   const memPct = memoryPercentage(vramGB, hw);
-  const score = computeScore(status, toksPerSec, paramsBillions, memPct);
+  // Diffusion has no speed estimate, so it is graded on fit and headroom alone.
+  const score = isDiffusion
+    ? computeDiffusionScore(status, paramsBillions, memPct)
+    : computeScore(status, toksPerSec, paramsBillions, memPct);
   const grade = scoreToGrade(score, status);
   return { status, toksPerSec, memPct, score, grade };
 }
