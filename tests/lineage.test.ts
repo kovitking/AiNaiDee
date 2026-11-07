@@ -66,19 +66,21 @@ describe("lineage helpers", () => {
 });
 
 describe("catalog lineages", () => {
-  // Upstream's own catalog assertions do not apply here: this fork has no
-  // GLM-5.3, and it deliberately leaves coder/reasoning variants out of the
+  // This fork deliberately leaves coder/reasoning variants out of the
   // general-model lineage of the same size (a coding model is a different
-  // product slot, not an older generation of the chat model).
+  // product slot, not an older generation of the chat model), so upstream's
+  // coder assertions do not apply here. GLM-5.3 was ported 2026-11-07.
 
-  it("keeps only GLM-5.2 current in glm-frontier", () => {
+  it("keeps only GLM-5.3 current in glm-frontier", () => {
     const glm5 = models.find((m) => m.id === "glm-5");
     const glm51 = models.find((m) => m.id === "glm-5.1");
     const glm52 = models.find((m) => m.id === "glm-5.2");
+    const glm53 = models.find((m) => m.id === "glm-5.3");
     expect(glm5 && isCurrentInLineage(glm5, models)).toBe(false);
     expect(glm51 && isCurrentInLineage(glm51, models)).toBe(false);
-    expect(glm52 && isCurrentInLineage(glm52, models)).toBe(true);
-    expect(glm5 && getLineageSuccessor(glm5, models)?.id).toBe("glm-5.2");
+    expect(glm52 && isCurrentInLineage(glm52, models)).toBe(false);
+    expect(glm53 && isCurrentInLineage(glm53, models)).toBe(true);
+    expect(glm5 && getLineageSuccessor(glm5, models)?.id).toBe("glm-5.3");
   });
 
   it("supersedes Qwen 3.5/3.6 27B with Qwen 3.8 27B", () => {

@@ -1,5 +1,5 @@
 import { readdirSync, existsSync } from "node:fs";
-import { getActiveParamsBillions, models } from "../../../src/data/models.ts";
+import { getEvaluationOptions, models } from "../../../src/data/models.ts";
 import { evaluateModelComplete } from "../../../src/lib/hardware.ts";
 import type { RecommendedModel, CliHardwareInfo } from "./types";
 import { modelPathFromId } from "./model-store";
@@ -188,7 +188,7 @@ function pickBestQuant(
       quant.vramGB,
       hw,
       model.paramsBillions,
-      { activeParamsBillions: getActiveParamsBillions(model) },
+      getEvaluationOptions(model),
     );
     if (evalResult.status === "cannot-run" || evalResult.status === "unknown") continue;
     const downloaded = isModelInstalled(model.id);

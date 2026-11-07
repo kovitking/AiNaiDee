@@ -396,6 +396,7 @@ function ctxLabel(n: number): string {
       <option value="vision">{useCaseLabel(["vision"], lang)}</option>
       <option value="image">{useCaseLabel(["image"], lang)}</option>
       <option value="video">{useCaseLabel(["video"], lang)}</option>
+      <option value="decision">{useCaseLabel(["decision"], lang)}</option>
     </select>
 
     <!-- Provider filter -->
@@ -469,6 +470,7 @@ function ctxLabel(n: number): string {
               data-quants={JSON.stringify(model.quants)}
               data-params={model.paramsBillions}
               data-active-params={getActiveParamsBillions(model)}
+              data-memory-profile={model.memoryProfile ?? "autoregressive"}
               data-arch={model.architecture}
               data-uses={model.useCase.join(",")}
               data-provider={model.provider}
@@ -590,6 +592,7 @@ function ctxLabel(n: number): string {
               data-quants={JSON.stringify(model.quants)}
               data-params={model.paramsBillions}
               data-active-params={getActiveParamsBillions(model)}
+              data-memory-profile={model.memoryProfile ?? "autoregressive"}
               data-arch={model.architecture}
               data-uses={model.useCase.join(",")}
               data-provider={model.provider}
@@ -1204,6 +1207,7 @@ function ctxLabel(n: number): string {
       grade,
     } = evaluateModelComplete(vram, hw, params, {
       activeParamsBillions: activeParams,
+      memoryProfile: row.dataset.memoryProfile === "diffusion" ? "diffusion" : "autoregressive",
     })
     const gradeInfo = GRADES[grade as Grade]
 
@@ -1377,7 +1381,12 @@ function ctxLabel(n: number): string {
           const row = link.querySelector<HTMLElement>("[data-model-id]")
           if (!row) return false
           if (used.has(row.dataset.modelId || "")) return false
-          if (!(row.dataset.uses || "").split(",").includes(tag)) return false
+          const uses = (row.dataset.uses || "").split(",")
+          if (!uses.includes(tag)) return false
+          // Decision models (Clef, pplx-decider, d1, JEV…) carry "vision" but
+          // score typed questions instead of writing text — never a pick for
+          // "can I run a vision/chat model?".
+          if (uses.includes("decision")) return false
           // Never recommend a model the catalog itself supersedes: Gemma 2 27B
           // is not the answer when Gemma 3 27B is right there. Computed
           // server-side into data-current via isCurrentInLineage().

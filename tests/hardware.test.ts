@@ -138,6 +138,8 @@ describe("getGPUCategory", () => {
   describe("NVIDIA professional Ampere / Turing", () => {
     it.each([
       ["RTX PRO 6000", "NVIDIA Pro"],
+      ["RTX PRO 5000", "NVIDIA Pro"],
+      ["RTX PRO 5000 72GB", "NVIDIA Pro"],
       ["RTX A6000", "NVIDIA Pro"],
       ["RTX A5500", "NVIDIA Pro"],
       ["RTX A5000", "NVIDIA Pro"],
@@ -203,6 +205,10 @@ describe("getGPUCategory", () => {
       ["Arc A750", "Intel Arc"],
       ["Iris Xe", "Intel Integrated"],
       ["UHD 770", "Intel Integrated"],
+      ["Arc Graphics", "Intel Integrated"],
+      ["Arc 140V", "Intel Integrated"],
+      ["Arc 130T", "Intel Integrated"],
+      ["Arc B390", "Intel Integrated"],
     ])("%s → %s", (name, expected) => {
       expect(getGPUCategory(name)).toBe(expected);
     });
@@ -238,6 +244,18 @@ describe("matchGPU", () => {
     expect(result!.cores).toBe(21760);
   });
 
+  it.each([
+    ["NVIDIA RTX PRO 5000 Blackwell", "RTX PRO 5000"],
+    ["ANGLE (NVIDIA, NVIDIA RTX PRO 5000 Blackwell (0x00002BB3) Direct3D11 vs_5_0 ps_5_0, D3D11)", "RTX PRO 5000"],
+    ["NVIDIA RTX PRO 5000 72GB Blackwell", "RTX PRO 5000 72GB"],
+  ])("matches RTX PRO 5000 %s → %s", (renderer, name) => {
+    expect(matchGPU(renderer)).toEqual(GPU_DB[name]);
+  });
+
+  it("RTX PRO 5000 72GB keeps the 48 GB card's bandwidth and cores", () => {
+    expect(GPU_DB["RTX PRO 5000 72GB"]).toEqual({ ...GPU_DB["RTX PRO 5000"], vram: 72 });
+  });
+
   it("RTX 4090 is NOT confused with RTX 4000 Ada", () => {
     const result = matchGPU("NVIDIA GeForce RTX 4090");
     expect(result).not.toBeNull();
@@ -268,6 +286,25 @@ describe("matchGPU", () => {
     const result = matchGPU("Intel(R) Arc(TM) A770 Graphics");
     expect(result).not.toBeNull();
     expect(result!.vram).toBe(16);
+  });
+
+  it.each([
+    ["ANGLE (Intel, Intel(R) Arc(TM) Graphics (0x00007D55) Direct3D11 vs_5_0 ps_5_0, D3D11)", "Arc Graphics"],
+    ["Mesa Intel(R) Arc(tm) Graphics (MTL)", "Arc Graphics"],
+    ["ANGLE (Intel, Intel(R) Arc(TM) 140V GPU (0x000064A0) Direct3D11 vs_5_0 ps_5_0, D3D11)", "Arc 140V"],
+    ["Intel(R) Arc(TM) 130V GPU", "Arc 130V"],
+    ["Intel(R) Arc(TM) 140T GPU", "Arc 140T"],
+    ["Intel(R) Arc(TM) 130T GPU", "Arc 130T"],
+    ["Intel(R) Arc(TM) B390 GPU", "Arc B390"],
+    ["Intel(R) Arc(TM) B370 GPU", "Arc B370"],
+  ])("matches Core Ultra iGPU %s → %s", (renderer, name) => {
+    expect(matchGPU(renderer)).toEqual(GPU_DB[name]);
+    expect(GPU_DB[name]!.vram).toBe(0);
+  });
+
+  it("does not confuse discrete Arc cards with the Core Ultra iGPUs", () => {
+    expect(matchGPU("Intel(R) Arc(TM) A770 Graphics")).toEqual(GPU_DB["Arc A770"]);
+    expect(matchGPU("Intel(R) Arc(TM) B580 Graphics")).toEqual(GPU_DB["Arc B580"]);
   });
 
   it("returns null for unknown GPUs", () => {

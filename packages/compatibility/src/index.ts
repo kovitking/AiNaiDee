@@ -102,6 +102,8 @@ export const GPU_DB: Record<string, { vram: number; bw: number; cores: number }>
   // NVIDIA workstation / pro desktop
   // Source: NVIDIA professional desktop product pages / line cards
   "RTX PRO 6000": { vram: 96, bw: 1792, cores: 24064 },
+  "RTX PRO 5000": { vram: 48, bw: 1344, cores: 14080 }, // 110 SMs × 128, GDDR7 384-bit
+  "RTX PRO 5000 72GB": { vram: 72, bw: 1344, cores: 14080 }, // same GPU, 3 GB GDDR7 modules
   "RTX 6000 Ada": { vram: 48, bw: 960, cores: 18176 },
   "RTX 5880 Ada": { vram: 48, bw: 960, cores: 14080 },
   "RTX 5000 Ada": { vram: 32, bw: 800, cores: 12800 },
@@ -131,6 +133,7 @@ export const GPU_DB: Record<string, { vram: number; bw: number; cores: number }>
   // Source: NVIDIA official GeForce specs
   "RTX 2060 12GB": { vram: 12, bw: 336, cores: 2176 },
   "RTX 3050 6GB": { vram: 6, bw: 168, cores: 2304 },
+  "RTX 3060 8GB": { vram: 8, bw: 240, cores: 3584 },
 
   // Data center / AI / inference
   // Source: NVIDIA official product pages / docs
@@ -144,6 +147,7 @@ export const GPU_DB: Record<string, { vram: number; bw: number; cores: number }>
   "GB300": { vram: 288, bw: 8000, cores: 20480 },
   "GH200": { vram: 96, bw: 4000, cores: 16896 },
   "DGX Spark": { vram: 128, bw: 273, cores: 6144 },
+  "L40": { vram: 48, bw: 864, cores: 18176 },
   "L40S": { vram: 48, bw: 864, cores: 18176 },
   "L20": { vram: 48, bw: 864, cores: 11776 },
   "L4": { vram: 24, bw: 300, cores: 7424 },
@@ -158,11 +162,13 @@ export const GPU_DB: Record<string, { vram: number; bw: number; cores: number }>
   // Source: AMD official product specs
   "RX 7900 XTX": { vram: 24, bw: 960, cores: 6144 },
   "RX 7900 XT": { vram: 20, bw: 800, cores: 5376 },
+  "RX 7900 GRE": { vram: 16, bw: 576, cores: 5120 },
   "RX 7800 XT": { vram: 16, bw: 624, cores: 3840 },
   "RX 7700 XT": { vram: 12, bw: 432, cores: 3456 },
   "RX 7600 XT": { vram: 16, bw: 288, cores: 2048 },
   "RX 7600": { vram: 8, bw: 288, cores: 2048 },
   "RX 6900 XT": { vram: 16, bw: 512, cores: 5120 },
+  "RX 6950 XT": { vram: 16, bw: 576, cores: 5120 },
   "RX 6800 XT": { vram: 16, bw: 512, cores: 4608 },
   "RX 6800": { vram: 16, bw: 512, cores: 3840 },
   "RX 6750 XT": { vram: 12, bw: 432, cores: 2560 },
@@ -171,6 +177,7 @@ export const GPU_DB: Record<string, { vram: number; bw: number; cores: number }>
   "RX 6600 XT": { vram: 8, bw: 256, cores: 2048 },
   "RX 6600": { vram: 8, bw: 224, cores: 1792 },
   "RX 6500 XT": { vram: 4, bw: 144, cores: 1024 },
+  "RX 6400": { vram: 4, bw: 128, cores: 768 },
 
   // Intel Arc desktop
   // Source: Intel official product specs
@@ -180,6 +187,11 @@ export const GPU_DB: Record<string, { vram: number; bw: number; cores: number }>
   "Arc A380": { vram: 6, bw: 186, cores: 1024 },
   "Arc Pro B70": { vram: 32, bw: 608, cores: 4096 }, // 32 Xe2-cores × 128, GDDR6 256-bit
   "Arc Pro B60": { vram: 24, bw: 456, cores: 2560 }, // 20 Xe2-cores × 128, GDDR6 192-bit
+
+  // Intel Arc B-series (Battlemage) desktop
+  // Source: Intel official Arc B-series launch specs
+  "Arc B580": { vram: 12, bw: 456, cores: 2560 }, // 20 Xe2-cores, GDDR6 192-bit
+  "Arc B570": { vram: 10, bw: 380, cores: 2304 }, // 18 Xe2-cores, GDDR6 160-bit
 
   // GTX 16 series
   // Source: NVIDIA official GeForce compare/specs
@@ -291,6 +303,11 @@ export const GPU_DB: Record<string, { vram: number; bw: number; cores: number }>
   "RX 5600 XT": { vram: 6, bw: 288, cores: 2304 },
   "RX 5500 XT": { vram: 8, bw: 224, cores: 1408 },
 
+  // AMD RX 400 series (Polaris)
+  // Source: AMD official product specs
+  "RX 480": { vram: 8, bw: 256, cores: 2304 },
+  "RX 470": { vram: 4, bw: 211, cores: 2048 }, // GDDR5 256-bit @ 6.6 Gbps
+
   // AMD RX 500 series (Polaris)
   // Source: AMD official product specs
   "RX 590": { vram: 8, bw: 256, cores: 2304 },
@@ -346,6 +363,15 @@ export const GPU_DB: Record<string, { vram: number; bw: number; cores: number }>
 
   // Intel integrated
   // Source: Intel platform memory specs / common system memory bandwidth assumptions
+  // Core Ultra Arc iGPUs: top-bin Xe-cores × 128; bw = fastest LPDDR5X on LPDDR5X-only
+  // chips, DDR5 dual-channel on chips that also ship with DDR5.
+  "Arc B390": { vram: 0, bw: 154, cores: 1536 }, // Series 3 (Panther Lake), 12 Xe3-cores, LPDDR5X-9600
+  "Arc B370": { vram: 0, bw: 137, cores: 1280 }, // Series 3 (Panther Lake), 10 Xe3-cores, LPDDR5X-8533
+  "Arc 140V": { vram: 0, bw: 137, cores: 1024 }, // Series 2 (Lunar Lake), 8 Xe2-cores, LPDDR5X-8533
+  "Arc 130V": { vram: 0, bw: 137, cores: 896 }, // Series 2 (Lunar Lake), 7 Xe2-cores, LPDDR5X-8533
+  "Arc 140T": { vram: 0, bw: 102, cores: 1024 }, // Series 2 (Arrow Lake H), 8 Xe-cores, DDR5-6400
+  "Arc 130T": { vram: 0, bw: 102, cores: 896 }, // Series 2 (Arrow Lake H), 7 Xe-cores, DDR5-6400
+  "Arc Graphics": { vram: 0, bw: 90, cores: 1024 }, // Series 1 (Meteor Lake H), 8 Xe-cores, DDR5-5600
   "Iris Xe": { vram: 0, bw: 68, cores: 96 },
   "Iris Plus": { vram: 0, bw: 50, cores: 64 },
   "UHD 770": { vram: 0, bw: 76, cores: 32 },
@@ -1327,6 +1353,10 @@ export function scoreToGrade(score: number, status: ModelStatus): Grade {
     if (score >= 40) return "C";
     return "D";
   }
+  // A tight fit still fits. Without a floor it can score below `can-run-slow`,
+  // which does not fit at all and falls back to system RAM — leaving the model
+  // labelled "Too heavy" while a strictly worse outcome reads "Barely runs".
+  if (status === "tight" && score < 20) return "D";
   if (score >= 85) return "S";
   if (score >= 70) return "A";
   if (score >= 55) return "B";
@@ -1343,9 +1373,19 @@ export interface ModelEvaluation {
   grade: Grade;
 }
 
+/** Mirrors `MemoryProfile` in @canirun/models. Kept local to avoid a package cycle. */
+export type MemoryProfile = "autoregressive" | "diffusion";
+
 export interface ModelEvaluationOptions {
   /** Parameters active per token. Fit and memory usage still use total VRAM. */
   activeParamsBillions?: number;
+  /**
+   * Defaults to `autoregressive`. `diffusion` suppresses the tokens/s estimate:
+   * image and video generators do not emit tokens, and their runtime is bound by
+   * the denoising loop rather than by memory bandwidth, so the bandwidth roofline
+   * below does not describe them.
+   */
+  memoryProfile?: MemoryProfile;
 }
 
 export function evaluateModelComplete(
@@ -1362,9 +1402,11 @@ export function evaluateModelComplete(
     ? Math.max(0.5, vramGB * (activeParams / paramsBillions))
     : vramGB;
   const status = evaluateModel(vramGB, hw);
-  const toksPerSec = estimateTokensPerSecond(speedWorkingSetGB, hw, {
-    residentModelGB: vramGB,
-  });
+  // `computeScore` falls back to a neutral speed term when this is null, so the
+  // grade rests on fit and memory headroom — the parts that do transfer.
+  const toksPerSec = options.memoryProfile === "diffusion"
+    ? null
+    : estimateTokensPerSecond(speedWorkingSetGB, hw, { residentModelGB: vramGB });
   const memPct = memoryPercentage(vramGB, hw);
   const score = computeScore(status, toksPerSec, paramsBillions, memPct);
   const grade = scoreToGrade(score, status);
@@ -1505,7 +1547,7 @@ export function getDeviceOverrides(deviceKey: string): HardwareOverrides | null 
   return null;
 }
 
-export const RAM_OPTIONS = [2, 4, 6, 8, 12, 16, 18, 24, 32, 36, 48, 64, 96, 128, 192, 256, 384, 512];
+export const RAM_OPTIONS = [2, 4, 6, 8, 12, 16, 18, 24, 32, 36, 48, 64, 96, 128, 192, 256, 384, 512, 768, 1024];
 export const SYSTEM_RAM_OPTIONS = [4, 8, 16, 32, 48, 64, 96, 128, 192, 256, 384, 512, 768, 1024];
 export const BW_OPTIONS = [50, 68, 100, 120, 150, 153, 200, 224, 256, 273, 288, 300, 307, 346, 360, 408, 432, 448, 504, 546, 614, 672, 768, 819, 960, 1008, 1024, 1792, 2039, 3350, 4000];
 export function buildSelectOptions(presets: number[], detected: number | null): number[] {
@@ -1521,7 +1563,7 @@ export function getGPUCategory(name: string): string {
   if (name.includes("Ada") || name.startsWith("RTX PRO") || name.startsWith("RTX 6000") || name.startsWith("RTX 4500") || name.startsWith("RTX A") || name.startsWith("Quadro") || name.startsWith("NVIDIA T") || /^T\d{3,4}$/.test(name)) return "NVIDIA Pro";
   // Datacenter parts come in capacity variants ("A100 40GB", "Tesla V100 32GB"),
   // so match an optional trailing size rather than listing every SKU.
-  if (/^tesla\b/i.test(name) || /^(a100|h100|h200|b200|gb300(-ws)?|gh200|dgx spark|l40s|l20|a10g?|t4)( \d+gb)?$/i.test(name) || /^L4$/i.test(name)) return "NVIDIA Datacenter";
+  if (/^tesla\b/i.test(name) || /^(a100|h100|h200|b200|gb300(-ws)?|gh200|dgx spark|l40s?|l20|a10g?|t4)( \d+gb)?$/i.test(name) || /^L4$/i.test(name)) return "NVIDIA Datacenter";
   if (name.startsWith("RTX 50")) return "NVIDIA RTX 50";
   if (name.startsWith("RTX 40")) return "NVIDIA RTX 40";
   if (name.startsWith("RTX 30")) return "NVIDIA RTX 30";
@@ -1536,6 +1578,7 @@ export function getGPUCategory(name: string): string {
   if (name === "Radeon VII") return "AMD Older";
   if (name.startsWith("Radeon") || name.startsWith("Ryzen") || /^Vega \d$/.test(name)) return "AMD Integrated";
   if (name.startsWith("RX") || name.startsWith("Vega")) return "AMD Older";
+  if (/^Arc (Graphics|B3\d0|1\d0[VT])$/.test(name)) return "Intel Integrated";
   if (name.startsWith("Arc")) return "Intel Arc";
   if (name.startsWith("Iris") || name.startsWith("UHD")) return "Intel Integrated";
   return "Other";

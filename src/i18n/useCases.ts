@@ -11,6 +11,7 @@ export const USE_CASE_LABELS = {
     rag: "ค้นเอกสาร",
     image: "สร้างรูป",
     video: "สร้างวิดีโอ",
+    decision: "ตัดสินใจ/จัดอันดับ",
   },
   en: {
     chat: "Chat",
@@ -22,6 +23,7 @@ export const USE_CASE_LABELS = {
     rag: "RAG",
     image: "Image",
     video: "Video",
+    decision: "Decision",
   },
 } as const;
 

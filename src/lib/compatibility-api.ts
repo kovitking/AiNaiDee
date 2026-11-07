@@ -1,5 +1,5 @@
 import {
-  getActiveParamsBillions,
+  getEvaluationOptions,
   models,
   type AIModel,
   type Quantization,
@@ -217,7 +217,7 @@ function pickRecommendedQuant(model: AIModel, hw: HardwareInfo): Quantization {
       quant.vramGB,
       hw,
       model.paramsBillions,
-      { activeParamsBillions: getActiveParamsBillions(model) },
+      getEvaluationOptions(model),
     );
     if (result.status === "can-run") return quant;
     if (
@@ -312,7 +312,7 @@ function buildCompatibilityResult(
     quant.vramGB,
     hw,
     model.paramsBillions,
-    { activeParamsBillions: getActiveParamsBillions(model) },
+    getEvaluationOptions(model),
   );
   const memory = availableMemory(hw);
   const headroom = memory === null ? null : round1(memory - quant.vramGB);
@@ -367,7 +367,7 @@ export function recommendModels(
         quant.vramGB,
         hw,
         model.paramsBillions,
-        { activeParamsBillions: getActiveParamsBillions(model) },
+        getEvaluationOptions(model),
       );
       if (result.status === "cannot-run" || result.status === "unknown") {
         return null;

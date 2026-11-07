@@ -1,7 +1,7 @@
 ---
 import Layout from "@/layouts/Layout.astro"
 import NavHeader from "@/components/NavHeader.astro"
-import { models, getActiveParamsBillions, isCommercialLicense, getLicenseTier } from "@/data/models"
+import { models, getActiveParamsBillions, isDiffusionModel, isCommercialLicense, getLicenseTier } from "@/data/models"
 import { getLicenseSlug } from "@/data/licenses"
 import hfStats from "@/data/hf-stats.json"
 import ollamaReadmes from "@/data/ollama-readmes.json"
@@ -43,6 +43,8 @@ export function getStaticPaths() {
 }
 
 const { model } = Astro.props
+const isDiffusion = isDiffusionModel(model)
+const isDecision = model.useCase.includes("decision")
 
 // Derived from `site` in astro.config.mjs (SITE_URL) rather than hardcoded, so
 // structured data follows the deployment instead of silently naming another site.
@@ -566,6 +568,7 @@ const USE_CASE_ICONS: Record<string, any> = {
             class="space-y-2 font-mono text-[13px]"
             data-params={model.paramsBillions}
             data-active-params={getActiveParamsBillions(model)}
+            data-memory-profile={model.memoryProfile ?? "autoregressive"}
           >
             <p class="text-muted italic">Detecting...</p>
           </div>
@@ -653,7 +656,7 @@ const USE_CASE_ICONS: Record<string, any> = {
             </>
           )}
           <p class={`font-mono text-xs text-muted ${(model.ollamaId || model.lmStudioId) ? "mt-4" : ""} mb-1`}>
-            llama.cpp / GGUF
+            {isDiffusion ? "ComfyUI / GGUF" : "llama.cpp / GGUF"}
           </p>
           <a
             href={`https://huggingface.co/models?search=${encodeURIComponent(model.name + " GGUF")}`}
@@ -664,6 +667,20 @@ const USE_CASE_ICONS: Record<string, any> = {
             <IconDownload class="h-3 w-3 shrink-0" />
             Download GGUF from HuggingFace
           </a>
+          {isDiffusion && (
+            <p class="mt-2 font-mono text-[11px] leading-relaxed text-muted">
+              Diffusion GGUFs load through ComfyUI-GGUF, not llama.cpp, and cover
+              the denoiser only — the text encoder and VAE are separate downloads.
+            </p>
+          )}
+          {isDecision && (
+            <p class="mt-2 font-mono text-[11px] leading-relaxed text-muted">
+              Decision model: it scores typed questions (yes/no, choice, score)
+              in one forward pass instead of writing text, so latency depends on
+              prompt processing, not tokens/s. Most ship a custom readout head —
+              check the model card for the supported runtime.
+            </p>
+          )}
           {!model.ollamaId && !model.lmStudioId && (
             <p class="mt-3 text-xs text-muted">
               No Ollama or LM Studio ID available for this model.
@@ -833,7 +850,8 @@ const USE_CASE_ICONS: Record<string, any> = {
 
     const paramsBillions = parseFloat(container.dataset.params || "0")
     const activeParamsBillions = parseFloat(container.dataset.activeParams || "0")
-    const evaluationOptions = { activeParamsBillions }
+    const memoryProfile = container.dataset.memoryProfile === "diffusion" ? "diffusion" as const : "autoregressive" as const
+    const evaluationOptions = { activeParamsBillions, memoryProfile }
     let detectedHW: HardwareInfo
     let currentHW: HardwareInfo
     let currentTrainMethod: TrainingMethod = "qlora"
